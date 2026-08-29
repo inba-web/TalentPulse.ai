@@ -18,14 +18,19 @@ export const errorHandler = (
     statusCode = err.statusCode;
     errorCode = err.errorCode;
     message = err.message;
-  } else if (err.name === 'ValidationError' || err.name === 'ZodError') {
+  } else if (
+    err?.name === 'ZodError' ||
+    err?.constructor?.name === 'ZodError' ||
+    Array.isArray(err?.issues) ||
+    Array.isArray(err?.errors)
+  ) {
     statusCode = 400;
     errorCode = 'VALIDATION_ERROR';
-    // Format Zod errors nicely
-    if (err.errors) {
-      message = err.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const issues = err.issues || err.errors || [];
+    if (issues.length > 0) {
+      message = issues.map((e: any) => `${e.path?.join('.') || 'field'}: ${e.message}`).join(', ');
     } else {
-      message = err.message;
+      message = err.message || 'Validation failed';
     }
   } else if (err.code === 'P2002') {
     // Prisma unique constraint violation

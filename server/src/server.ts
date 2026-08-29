@@ -56,6 +56,23 @@ async function runSchemaMigrations() {
       CREATE INDEX IF NOT EXISTS "CompanyArchive_deletedAt_idx" ON "CompanyArchive"("deletedAt");
     `);
 
+    // Ensure default demo users exist if DB is empty
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      const argon2 = require('argon2');
+      const defaultHash = await argon2.hash('Password123!');
+      await prisma.user.createMany({
+        data: [
+          { email: 'admin@talentpulse.ai', fullName: 'Admin User', roleName: 'ADMIN', passwordHash: defaultHash, isEmailVerified: true },
+          { email: 'manager@talentpulse.ai', fullName: 'Manager User', roleName: 'MANAGER', passwordHash: defaultHash, isEmailVerified: true },
+          { email: 'lead@talentpulse.ai', fullName: 'Lead User', roleName: 'LEAD', passwordHash: defaultHash, isEmailVerified: true },
+          { email: 'recruiter@talentpulse.ai', fullName: 'Recruiter User', roleName: 'RECRUITER', passwordHash: defaultHash, isEmailVerified: true },
+        ],
+        skipDuplicates: true,
+      });
+      logger.info('Default demo users seeded automatically.');
+    }
+
     logger.info('Schema auto-migration completed successfully.');
   } catch (err: any) {
     logger.warn({ err: err.message }, 'Schema auto-migration warning (non-fatal).');
