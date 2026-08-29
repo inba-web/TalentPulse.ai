@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  Search,
 } from 'lucide-react';
 import {
   BarChart,
@@ -52,6 +53,11 @@ export default function Dashboard() {
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
   const [placementsReport, setPlacementsReport] = useState<any>(null);
   const [placementsLoading, setPlacementsLoading] = useState(false);
+
+  // Modal Filter & Search states
+  const [modalSearch, setModalSearch] = useState('');
+  const [ctcTierFilter, setCtcTierFilter] = useState<'ALL' | 'TOP_20' | 'MID_10_20' | 'UNDER_10'>('ALL');
+
 
   const fetchStats = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -573,6 +579,43 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {(activeModal === 'PLACED' || activeModal === 'HIGHEST' || activeModal === 'UNPLACED' || activeModal === 'ELIGIBLE') && (
+                <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-background-secondary p-3.5 rounded-lg border border-border-primary">
+                  <div className="relative w-full sm:w-80">
+                    <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={modalSearch}
+                      onChange={(e) => setModalSearch(e.target.value)}
+                      placeholder="Search name, CTC (e.g. 24), roll no, company..."
+                      className="w-full pl-9 pr-3 py-1.5 bg-surface-2 border border-border-primary rounded text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-primary"
+                    />
+                  </div>
+                  {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => setCtcTierFilter('ALL')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'ALL' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
+                      >
+                        All Offers
+                      </button>
+                      <button
+                        onClick={() => setCtcTierFilter('TOP_20')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'TOP_20' ? 'bg-amber-500 text-black border-amber-500 font-extrabold' : 'bg-surface-2 text-amber-400 border-amber-400/30 hover:bg-amber-500/10'}`}
+                      >
+                        🔥 20+ LPA (24 LPA Top Tier)
+                      </button>
+                      <button
+                        onClick={() => setCtcTierFilter('MID_10_20')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'MID_10_20' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
+                      >
+                        10-20 LPA
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
                 <div className="border border-border-primary rounded overflow-hidden">
                   <table className="w-full text-left border-collapse text-xs">
@@ -586,41 +629,66 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-primary">
-                      {(placementsReport?.placed || []).map((p: any) => (
-                        <tr key={p.id} className="hover:bg-surface-2/60 transition">
-                          <td className="px-4 py-3 font-bold text-text-primary">
-                            {p.fullName}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-semibold text-text-primary">{p.rollNumber}</span>
-                            <span className="text-[10px] text-text-muted block">{p.department}</span>
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-text-primary flex items-center gap-1.5 mt-1">
-                            <Building2 className="w-3.5 h-3.5 text-primary" />
-                            <span>{p.companyName}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="font-extrabold text-success text-xs bg-success/10 px-2.5 py-1 rounded border border-success/20">
-                              ₹ {p.ctc} LPA
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => {
-                                setActiveModal(null);
-                                navigate(`/students/${p.studentId}`);
-                              }}
-                              className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
-                            >
-                              Profile &rarr;
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {(placementsReport?.placed || [])
+                        .filter((p: any) => {
+                          if (ctcTierFilter === 'TOP_20' && p.ctc < 20) return false;
+                          if (ctcTierFilter === 'MID_10_20' && (p.ctc < 10 || p.ctc >= 20)) return false;
+                          if (ctcTierFilter === 'UNDER_10' && p.ctc >= 10) return false;
+                          if (!modalSearch.trim()) return true;
+                          const q = modalSearch.toLowerCase().trim();
+                          return (
+                            p.fullName.toLowerCase().includes(q) ||
+                            p.rollNumber.toLowerCase().includes(q) ||
+                            p.companyName.toLowerCase().includes(q) ||
+                            p.department.toLowerCase().includes(q) ||
+                            p.ctc.toString().includes(q) ||
+                            `${p.ctc} lpa`.includes(q)
+                          );
+                        })
+                        .sort((a: any, b: any) => b.ctc - a.ctc)
+                        .map((p: any) => (
+                          <tr key={p.id} className={`transition ${p.ctc >= 24 ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-surface-2/60'}`}>
+                            <td className="px-4 py-3 font-bold text-text-primary">
+                              <div className="flex items-center gap-2">
+                                <span>{p.fullName}</span>
+                                {p.ctc >= 24 && (
+                                  <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-extrabold rounded-full uppercase tracking-wider shadow">
+                                    🏆 24 LPA Top Offer
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-mono font-semibold text-text-primary">{p.rollNumber}</span>
+                              <span className="text-[10px] text-text-muted block">{p.department}</span>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-text-primary flex items-center gap-1.5 mt-1">
+                              <Building2 className="w-3.5 h-3.5 text-primary" />
+                              <span>{p.companyName}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`font-extrabold text-xs px-2.5 py-1 rounded border ${p.ctc >= 24 ? 'bg-amber-500 text-black border-amber-400' : 'text-success bg-success/10 border-success/20'}`}>
+                                ₹ {p.ctc} LPA
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => {
+                                  setActiveModal(null);
+                                  navigate(`/students/${p.studentId}`);
+                                }}
+                                className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                              >
+                                Profile &rarr;
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
               )}
+
 
               {(activeModal === 'UNPLACED' || activeModal === 'ELIGIBLE') && (
                 <div className="border border-border-primary rounded overflow-hidden">

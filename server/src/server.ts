@@ -416,6 +416,66 @@ async function runSchemaMigrations() {
   } catch (err: any) {
     logger.warn({ err: err.message }, 'Non-fatal placement seeding notice.');
   }
+
+  // Auto-seed 24.0 LPA and 20.0 LPA placement offer records for Palo Alto Networks & Google India
+  try {
+    const paloAlto = await prisma.company.findFirst({
+      where: { name: { contains: 'Palo Alto', mode: 'insensitive' } },
+      include: { jobs: true },
+    });
+    const google = await prisma.company.findFirst({
+      where: { name: { contains: 'Google', mode: 'insensitive' } },
+      include: { jobs: true },
+    });
+
+    const swetha = await prisma.student.findFirst({
+      where: { rollNumber: '24CY003' },
+    });
+    const vignesh = await prisma.student.findFirst({
+      where: { rollNumber: '24EC003' },
+    });
+
+    if (paloAlto && swetha) {
+      await prisma.student.update({
+        where: { id: swetha.id },
+        data: { placementStatus: 'PLACED' },
+      });
+      await prisma.studentPlacementHistory.upsert({
+        where: { id: `placement-24lpa-${swetha.id}` },
+        create: {
+          id: `placement-24lpa-${swetha.id}`,
+          studentId: swetha.id,
+          companyId: paloAlto.id,
+          jobId: paloAlto.jobs[0]?.id,
+          ctc: 24.0,
+          status: 'JOINED',
+        },
+        update: { ctc: 24.0, status: 'JOINED' },
+      });
+    }
+
+    if (google && vignesh) {
+      await prisma.student.update({
+        where: { id: vignesh.id },
+        data: { placementStatus: 'PLACED' },
+      });
+      await prisma.studentPlacementHistory.upsert({
+        where: { id: `placement-20lpa-${vignesh.id}` },
+        create: {
+          id: `placement-20lpa-${vignesh.id}`,
+          studentId: vignesh.id,
+          companyId: google.id,
+          jobId: google.jobs[0]?.id,
+          ctc: 20.0,
+          status: 'OFFERED',
+        },
+        update: { ctc: 20.0, status: 'OFFERED' },
+      });
+    }
+  } catch (err: any) {
+    logger.warn({ err: err.message }, 'Non-fatal 24 LPA placement seeding notice.');
+  }
+
 }
 
 // Run migrations then start server
