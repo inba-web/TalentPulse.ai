@@ -262,4 +262,114 @@ export class StudentController {
       data: departments,
     });
   });
+
+  public static seedInba = catchAsync(async (req: Request, res: Response) => {
+    const { prisma } = require('../../config/db');
+    let dept = await prisma.department.findFirst({
+      where: { OR: [{ name: 'Computer Science' }, { code: 'CSE' }, { code: 'CS' }] },
+    });
+    if (!dept) {
+      dept = await prisma.department.create({
+        data: { name: 'Computer Science', code: 'CSE' },
+      });
+    }
+
+    const inbaRoll = 'RCAS2024BCY046';
+    const existingInba = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { rollNumber: inbaRoll },
+          { personalEmail: 'inbavarunans@gmail.com' },
+          { collegeEmail: 'inbavarunans.bcy24@rathinam.in' },
+          { mobileNumber: '9876543210' },
+        ],
+      },
+    });
+
+    let studentRecord;
+    if (existingInba) {
+      studentRecord = await prisma.student.update({
+        where: { id: existingInba.id },
+        data: {
+          rollNumber: inbaRoll,
+          fullName: 'INBAVARUNAN S',
+          departmentId: dept.id,
+          gender: 'MALE',
+          hostelStatus: 'HOSTEL',
+          personalEmail: 'inbavarunans@gmail.com',
+          collegeEmail: 'inbavarunans.bcy24@rathinam.in',
+          mobileNumber: '9876543210',
+          studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          graduationDate: new Date('2027-05-31'),
+          placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          deletedAt: null,
+          academics: {
+            upsert: {
+              create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+              update: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+            },
+          },
+          links: {
+            upsert: {
+              create: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+              update: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+            },
+          },
+        },
+      });
+    } else {
+      studentRecord = await prisma.student.create({
+        data: {
+          rollNumber: inbaRoll,
+          fullName: 'INBAVARUNAN S',
+          departmentId: dept.id,
+          gender: 'MALE',
+          hostelStatus: 'HOSTEL',
+          personalEmail: 'inbavarunans@gmail.com',
+          collegeEmail: 'inbavarunans.bcy24@rathinam.in',
+          mobileNumber: '9876543210',
+          studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          graduationDate: new Date('2027-05-31'),
+          placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          academics: {
+            create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+          },
+          links: {
+            create: {
+              githubUrl: 'https://github.com/inba-web',
+              linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+              portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+            },
+          },
+          documents: {
+            create: {
+              documentType: 'RESUME',
+              fileUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+              fileKey: 'inba-resume',
+              mimeType: 'application/pdf',
+              fileSize: 0,
+              isLatestResume: true,
+            },
+          },
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Student INBAVARUNAN S seeded successfully',
+      data: studentRecord,
+    });
+  });
 }
+

@@ -181,6 +181,112 @@ async function runSchemaMigrations() {
   } catch (err: any) {
     logger.warn({ err: err.message }, 'Schema auto-migration warning (non-fatal).');
   }
+
+  // Dedicated Auto-seed / Upsert for student INBAVARUNAN S (RCAS2024BCY046)
+  try {
+    let dept = await prisma.department.findFirst({
+      where: { OR: [{ name: 'Computer Science' }, { code: 'CSE' }, { code: 'CS' }] },
+    });
+    if (!dept) {
+      dept = await prisma.department.create({
+        data: { name: 'Computer Science', code: 'CSE' },
+      });
+    }
+
+    const inbaRoll = 'RCAS2024BCY046';
+    const existingInba = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { rollNumber: inbaRoll },
+          { personalEmail: 'inbavarunans@gmail.com' },
+          { collegeEmail: 'inbavarunans.bcy24@rathinam.in' },
+          { mobileNumber: '9876543210' },
+        ],
+      },
+    });
+
+    if (existingInba) {
+      await prisma.student.update({
+        where: { id: existingInba.id },
+        data: {
+          rollNumber: inbaRoll,
+          fullName: 'INBAVARUNAN S',
+          departmentId: dept.id,
+          gender: 'MALE',
+          hostelStatus: 'HOSTEL',
+          personalEmail: 'inbavarunans@gmail.com',
+          collegeEmail: 'inbavarunans.bcy24@rathinam.in',
+          mobileNumber: '9876543210',
+          studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          graduationDate: new Date('2027-05-31'),
+          placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          deletedAt: null,
+          academics: {
+            upsert: {
+              create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+              update: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+            },
+          },
+          links: {
+            upsert: {
+              create: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+              update: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+            },
+          },
+        },
+      });
+      logger.info('INBAVARUNAN S student profile updated successfully.');
+    } else {
+      await prisma.student.create({
+        data: {
+          rollNumber: inbaRoll,
+          fullName: 'INBAVARUNAN S',
+          departmentId: dept.id,
+          gender: 'MALE',
+          hostelStatus: 'HOSTEL',
+          personalEmail: 'inbavarunans@gmail.com',
+          collegeEmail: 'inbavarunans.bcy24@rathinam.in',
+          mobileNumber: '9876543210',
+          studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          graduationDate: new Date('2027-05-31'),
+          placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          academics: {
+            create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+          },
+          links: {
+            create: {
+              githubUrl: 'https://github.com/inba-web',
+              linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+              portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+            },
+          },
+          documents: {
+            create: {
+              documentType: 'RESUME',
+              fileUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+              fileKey: 'inba-resume',
+              mimeType: 'application/pdf',
+              fileSize: 0,
+              isLatestResume: true,
+            },
+          },
+        },
+      });
+      logger.info('INBAVARUNAN S student profile created successfully.');
+    }
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to seed INBAVARUNAN S student profile.');
+  }
 }
 
 // Run migrations then start server

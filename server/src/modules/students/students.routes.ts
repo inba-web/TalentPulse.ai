@@ -16,6 +16,7 @@ const studentsRouter = Router();
 studentsRouter.use(requireAuth);
 
 studentsRouter.get('/departments', StudentController.getDepartments);
+studentsRouter.post('/seed-inba', StudentController.seedInba);
 studentsRouter.get('/', hasPermission('STUDENT_READ'), StudentController.getStudents);
 studentsRouter.post('/', hasPermission('STUDENT_CREATE'), StudentController.createStudent);
 studentsRouter.get('/:id', hasPermission('STUDENT_READ'), StudentController.getStudentById);
