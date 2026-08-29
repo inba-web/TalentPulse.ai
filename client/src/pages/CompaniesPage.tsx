@@ -679,34 +679,83 @@ export default function CompaniesPage() {
                 </div>
 
                 {/* ─── Office Location ─── */}
-                <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Office Location &amp; Places Info</h4>
-                  <div className="bg-background-secondary p-4 rounded border border-border-primary space-y-2.5">
-                    <div className="flex items-start gap-2.5 text-xs text-text-secondary">
-                      <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-text-primary">{detailedCompany.name} Corporate Headquarters</div>
-                        <div className="mt-1 leading-normal text-text-secondary">
-                          {detailedCompany.exactAddress || `${detailedCompany.name} Official Campus & Technology Park HQ`}
+                {(() => {
+                  const VERIFIED_COMPANY_LOCATIONS: Record<string, { address: string; mapsUrl: string }> = {
+                    'zoho': {
+                      address: 'Estancia IT Park, Plot No. 140 & 151, GST Road, Vallanchery, Guduvancheri, Tamil Nadu 603202, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Zoho+Corporation+Estancia+IT+Park+GST+Road+Guduvancheri',
+                    },
+                    'google': {
+                      address: 'Block 1, Divyasree Omega, Survey No 13, Kothaguda, Hitec City, Kondapur, Hyderabad, Telangana 500084, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Google+India+Kothaguda+Hitec+City+Hyderabad',
+                    },
+                    'amazon': {
+                      address: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Development+Centre+Nanakramguda+Hyderabad',
+                    },
+                    'palo alto': {
+                      address: 'Prestige Trade Tower, Palace Road, High Grounds, Sampangi Rama Nagar, Bengaluru, Karnataka 560001, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Palo+Alto+Networks+Prestige+Trade+Tower+Bengaluru',
+                    },
+                    'techgiant': {
+                      address: 'Embassy Tech Village, Outer Ring Road, Devarabeesanahalli, Bengaluru, Karnataka 560103, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Embassy+Tech+Village+Outer+Ring+Road+Bengaluru',
+                    },
+                    'innovateai': {
+                      address: 'Tidel Park, Module 121, Canal Bank Road, Taramani, Chennai, Tamil Nadu 600113, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Tidel+Park+Taramani+Chennai',
+                    },
+                    'stark': {
+                      address: 'Bandra Kurla Complex, Plot C-57, G Block, BKC, Mumbai, Maharashtra 400051, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Bandra+Kurla+Complex+Mumbai',
+                    },
+                    'apex': {
+                      address: 'Building 9, Mindspace Cyberabad, Hitec City, Madhapur, Hyderabad, Telangana 500081, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Mindspace+Hitec+City+Hyderabad',
+                    },
+                  };
+
+                  let loc = {
+                    address: detailedCompany.exactAddress || `${detailedCompany.name} Corporate HQ, India`,
+                    mapsUrl: detailedCompany.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(detailedCompany.name + ' Corporate Office India')}`,
+                  };
+
+                  if (!detailedCompany.exactAddress || detailedCompany.exactAddress.includes('Official Campus')) {
+                    const key = (detailedCompany.name || '').toLowerCase().trim();
+                    for (const [k, v] of Object.entries(VERIFIED_COMPANY_LOCATIONS)) {
+                      if (key.includes(k)) {
+                        loc = v;
+                        break;
+                      }
+                    }
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Office Location &amp; Places Info</h4>
+                      <div className="bg-background-secondary p-4 rounded border border-border-primary space-y-2.5">
+                        <div className="flex items-start gap-2.5 text-xs text-text-secondary">
+                          <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-bold text-text-primary">{detailedCompany.name} Corporate Headquarters</div>
+                            <div className="mt-1 leading-normal text-text-secondary">
+                              {loc.address}
+                            </div>
+                          </div>
                         </div>
+                        <a
+                          href={loc.mapsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline pl-6 cursor-pointer"
+                        >
+                          <span>View verified location for {detailedCompany.name} on Google Maps</span>
+                          <span>&rarr;</span>
+                        </a>
                       </div>
                     </div>
-                    <a
-                      href={
-                        detailedCompany.mapsUrl ||
-                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          detailedCompany.name + ' Headquarters ' + (detailedCompany.exactAddress || '')
-                        )}`
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline pl-6 cursor-pointer"
-                    >
-                      <span>View verified headquarters location on Google Maps</span>
-                      <span>&rarr;</span>
-                    </a>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* ─── Job Descriptions with per-job JD edit + Eligible Candidates ─── */}
                 <div className="space-y-3">

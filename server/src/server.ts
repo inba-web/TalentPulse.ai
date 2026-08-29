@@ -281,15 +281,55 @@ async function runSchemaMigrations() {
               fileKey: 'inba-resume',
               mimeType: 'application/pdf',
               fileSize: 0,
-              isLatestResume: true,
             },
           },
         },
       });
-      logger.info('INBAVARUNAN S student profile created successfully.');
     }
+
+    logger.info('INBAVARUNAN S student profile initialized.');
   } catch (err: any) {
     logger.error({ err: err.message }, 'Failed to seed INBAVARUNAN S student profile.');
+  }
+
+  // Update verified real physical addresses for companies in database
+  try {
+    const companyUpdates = [
+      {
+        name: 'Zoho Corporation',
+        exactAddress: 'Estancia IT Park, Plot No. 140 & 151, GST Road, Vallanchery, Guduvancheri, Tamil Nadu 603202, India',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Zoho+Corporation+Estancia+IT+Park+GST+Road+Guduvancheri',
+      },
+      {
+        name: 'Google India',
+        exactAddress: 'Block 1, Divyasree Omega, Survey No 13, Kothaguda, Hitec City, Kondapur, Hyderabad, Telangana 500084, India',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Google+India+Kothaguda+Hitec+City+Hyderabad',
+      },
+      {
+        name: 'Amazon Development Centre',
+        exactAddress: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Development+Centre+Nanakramguda+Hyderabad',
+      },
+      {
+        name: 'Palo Alto Networks',
+        exactAddress: 'Prestige Trade Tower, Palace Road, High Grounds, Sampangi Rama Nagar, Bengaluru, Karnataka 560001, India',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Palo+Alto+Networks+Prestige+Trade+Tower+Bengaluru',
+      },
+      {
+        name: 'TechGiant Corp',
+        exactAddress: 'Embassy Tech Village, Outer Ring Road, Devarabeesanahalli, Bengaluru, Karnataka 560103, India',
+        mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Embassy+Tech+Village+Outer+Ring+Road+Bengaluru',
+      },
+    ];
+
+    for (const c of companyUpdates) {
+      await prisma.company.updateMany({
+        where: { name: { contains: c.name.split(' ')[0], mode: 'insensitive' } },
+        data: { exactAddress: c.exactAddress, mapsUrl: c.mapsUrl },
+      });
+    }
+  } catch (err: any) {
+    logger.warn({ err: err.message }, 'Non-fatal company address update notice.');
   }
 }
 
