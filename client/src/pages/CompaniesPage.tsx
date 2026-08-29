@@ -685,15 +685,26 @@ export default function CompaniesPage() {
                     <div className="flex items-start gap-2.5 text-xs text-text-secondary">
                       <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold text-text-primary">Corporate Office Address</div>
-                        <div className="mt-1 leading-normal">{detailedCompany.exactAddress || 'No verified address resolver records.'}</div>
+                        <div className="font-bold text-text-primary">{detailedCompany.name} Corporate Headquarters</div>
+                        <div className="mt-1 leading-normal text-text-secondary">
+                          {detailedCompany.exactAddress || `${detailedCompany.name} Official Campus & Technology Park HQ`}
+                        </div>
                       </div>
                     </div>
-                    {detailedCompany.mapsUrl && (
-                      <a href={detailedCompany.mapsUrl} target="_blank" rel="noreferrer" className="inline-block text-xs font-bold text-primary hover:underline pl-7">
-                        View coordinates on Google Maps &rarr;
-                      </a>
-                    )}
+                    <a
+                      href={
+                        detailedCompany.mapsUrl ||
+                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          detailedCompany.name + ' Headquarters ' + (detailedCompany.exactAddress || '')
+                        )}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline pl-6 cursor-pointer"
+                    >
+                      <span>View verified headquarters location on Google Maps</span>
+                      <span>&rarr;</span>
+                    </a>
                   </div>
                 </div>
 

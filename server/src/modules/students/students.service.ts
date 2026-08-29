@@ -546,19 +546,57 @@ export class StudentService {
           selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
         });
 
-        // Check if student with roll number already exists
-        const dupRoll = await prisma.student.findUnique({ where: { rollNumber: parsed.rollNumber } });
+        // Parse row values matching createStudentSchema (mapping column headers)
+        const parsed = createStudentSchema.parse({
+          rollNumber: roll,
+          fullName: name,
+          departmentId: resolvedDeptId,
+          gender: genderInput,
+          hostelStatus: hostelInput,
+          personalEmail: pEmail,
+          collegeEmail: cEmail,
+          mobileNumber: mobile,
+          graduationDate: gradDateVal,
+          sslcPercentage: sslc,
+          hscPercentage: hsc,
+          ugPercentage: ug,
+          pgPercentage: pg,
+          githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url', 'github id', 'github_id']) || null,
+          linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url', 'linkedin id', 'linkedin_id']) || null,
+          portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null,
+          studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image', 'student photo', 'student_photo']) || null,
+          selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
+        });
+
+        // Find existing student by roll number, email, or mobile for Upsert
+        const existingStudent = await prisma.student.findFirst({
+          where: {
+            OR: [
+              { rollNumber: parsed.rollNumber },
+              { personalEmail: parsed.personalEmail },
+              { collegeEmail: parsed.collegeEmail },
+              { mobileNumber: parsed.mobileNumber },
+            ],
+          },
+        });
+
         let studentRecord: any = null;
 
-        if (dupRoll) {
+        if (existingStudent) {
           // Update existing student with latest values from spreadsheet (Upsert)
           studentRecord = await prisma.student.update({
-            where: { id: dupRoll.id },
+            where: { id: existingStudent.id },
             data: {
+              rollNumber: parsed.rollNumber,
               fullName: parsed.fullName,
               departmentId: parsed.departmentId,
               gender: parsed.gender,
               hostelStatus: parsed.hostelStatus,
+              personalEmail: parsed.personalEmail,
+              collegeEmail: parsed.collegeEmail,
+              mobileNumber: parsed.mobileNumber,
+              studentPhotoUrl: parsed.studentPhotoUrl || existingStudent.studentPhotoUrl,
+              selfIntroVideoUrl: parsed.selfIntroVideoUrl || existingStudent.selfIntroVideoUrl,
               graduationDate: new Date(parsed.graduationDate),
               placementStatus: finalPlacementStatus,
               academics: {
@@ -596,21 +634,6 @@ export class StudentService {
           duplicates.push(`Row ${rowNum}: Student ${parsed.rollNumber} (${parsed.fullName}) updated with latest spreadsheet values.`);
           successCount++;
         } else {
-          // Check duplicate email or mobile
-          const dupEmail = await prisma.student.findFirst({
-            where: { OR: [{ personalEmail: parsed.personalEmail }, { collegeEmail: parsed.collegeEmail }] },
-          });
-          if (dupEmail) {
-            duplicates.push(`Row ${rowNum}: Email (${parsed.personalEmail}) is already assigned to another student.`);
-            continue;
-          }
-
-          const dupMobile = await prisma.student.findUnique({ where: { mobileNumber: parsed.mobileNumber } });
-          if (dupMobile) {
-            duplicates.push(`Row ${rowNum}: Mobile (${parsed.mobileNumber}) is already assigned to another student.`);
-            continue;
-          }
-
           // Insert new student
           studentRecord = await this.createStudent(parsed);
           if (finalPlacementStatus === PlacementStatus.PLACED) {

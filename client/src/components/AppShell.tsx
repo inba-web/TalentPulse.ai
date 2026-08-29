@@ -16,8 +16,166 @@ import {
   Settings,
   FileSearch,
   AlertTriangle,
+  Bell,
+  CheckCheck,
+  Sparkles,
+  UserPlus,
+  CheckCircle2,
+  Building,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  type: 'STUDENT' | 'JOB' | 'COMPANY' | 'ATS';
+  read: boolean;
+  link: string;
+}
+
+function NotificationDropdown() {
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: '1',
+      title: 'New Candidate Upload',
+      description: 'INBAVARUNAN S (RCAS2024BCY046) uploaded resume in Cyber Security.',
+      time: '2 mins ago',
+      type: 'STUDENT',
+      read: false,
+      link: '/students',
+    },
+    {
+      id: '2',
+      title: 'Placement Drive Approved',
+      description: 'Google India (Software Engineer - 20.0 LPA) drive approved by Admin.',
+      time: '15 mins ago',
+      type: 'JOB',
+      read: false,
+      link: '/jobs',
+    },
+    {
+      id: '3',
+      title: 'High ATS Match Found',
+      description: '3 candidates achieved > 85% ATS score match for Zoho Corporation.',
+      time: '1 hour ago',
+      type: 'ATS',
+      read: false,
+      link: '/recruiter',
+    },
+    {
+      id: '4',
+      title: 'New Company Onboarded',
+      description: 'Palo Alto Networks registered in Hot Opportunity pipeline.',
+      time: '3 hours ago',
+      type: 'COMPANY',
+      read: true,
+      link: '/companies',
+    },
+  ]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const markItemRead = (id: string, link: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setOpen(false);
+    navigate(link);
+  };
+
+  const getIcon = (type: NotificationItem['type']) => {
+    switch (type) {
+      case 'STUDENT':
+        return <UserPlus className="w-4 h-4 text-primary" />;
+      case 'JOB':
+        return <CheckCircle2 className="w-4 h-4 text-success" />;
+      case 'COMPANY':
+        return <Building className="w-4 h-4 text-warning" />;
+      case 'ATS':
+        return <Sparkles className="w-4 h-4 text-primary" />;
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="relative p-2 rounded-full hover:bg-background-secondary text-text-muted hover:text-text-primary transition cursor-pointer"
+        title="Notifications"
+      >
+        <Bell className="w-5 h-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[10px] font-extrabold rounded-full flex items-center justify-center animate-pulse">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface-1 rounded border border-border-primary shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 py-3 border-b border-border-primary flex items-center justify-between bg-surface-2">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-primary" />
+                <span className="font-extrabold text-xs text-text-primary uppercase tracking-wider">Notifications &amp; Alerts</span>
+                {unreadCount > 0 && (
+                  <span className="text-[10px] bg-primary/20 text-primary font-bold px-2 py-0.5 rounded-full">
+                    {unreadCount} unread
+                  </span>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  <span>Mark all read</span>
+                </button>
+              )}
+            </div>
+
+            <div className="divide-y divide-border-primary max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-xs text-text-muted">No new notifications</div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => markItemRead(n.id, n.link)}
+                    className={`p-3.5 flex gap-3 items-start transition cursor-pointer ${
+                      n.read ? 'bg-surface-1 hover:bg-surface-2' : 'bg-primary/5 hover:bg-primary/10'
+                    }`}
+                  >
+                    <div className="p-2 rounded bg-surface-2 border border-border-primary flex-shrink-0 mt-0.5">
+                      {getIcon(n.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center gap-2">
+                        <span className={`text-xs font-bold truncate ${n.read ? 'text-text-primary' : 'text-primary'}`}>
+                          {n.title}
+                        </span>
+                        <span className="text-[10px] text-text-muted flex-shrink-0">{n.time}</span>
+                      </div>
+                      <p className="text-[11px] text-text-secondary mt-0.5 leading-snug line-clamp-2">{n.description}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -211,6 +369,11 @@ export default function AppShell({ children }: AppShellProps) {
                 Ctrl + K
               </kbd>
             </button>
+
+            {/* Notifications Feature (Admin, Manager, Lead) */}
+            {user && ['ADMIN', 'MANAGER', 'LEAD'].includes(user.roleName) && (
+              <NotificationDropdown />
+            )}
 
             {user && (
               <div className="flex items-center gap-2.5 border-l border-border-primary pl-6">
