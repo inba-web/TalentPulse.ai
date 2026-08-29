@@ -331,6 +331,74 @@ async function runSchemaMigrations() {
   } catch (err: any) {
     logger.warn({ err: err.message }, 'Non-fatal company address update notice.');
   }
+
+  // Auto-seed demo placement records for Zoho Corporation
+  try {
+    const zoho = await prisma.company.findFirst({
+      where: { name: { contains: 'Zoho', mode: 'insensitive' } },
+      include: { jobs: true },
+    });
+
+    if (zoho && zoho.jobs.length > 0) {
+      const inba = await prisma.student.findFirst({
+        where: { rollNumber: 'RCAS2024BCY046' },
+      });
+      const arun = await prisma.student.findFirst({
+        where: { rollNumber: '24IT003' },
+      });
+
+      const zohoJob = zoho.jobs[0];
+
+      if (inba) {
+        await prisma.student.update({
+          where: { id: inba.id },
+          data: { placementStatus: 'PLACED' },
+        });
+
+        const existingPlacementInba = await prisma.studentPlacementHistory.findFirst({
+          where: { studentId: inba.id, companyId: zoho.id },
+        });
+
+        if (!existingPlacementInba) {
+          await prisma.studentPlacementHistory.create({
+            data: {
+              studentId: inba.id,
+              companyId: zoho.id,
+              jobId: zohoJob.id,
+              ctc: 8.0,
+              status: 'OFFERED',
+            },
+          });
+        }
+      }
+
+      if (arun) {
+        await prisma.student.update({
+          where: { id: arun.id },
+          data: { placementStatus: 'PLACED' },
+        });
+
+        const existingPlacementArun = await prisma.studentPlacementHistory.findFirst({
+          where: { studentId: arun.id, companyId: zoho.id },
+        });
+
+        if (!existingPlacementArun) {
+          await prisma.studentPlacementHistory.create({
+            data: {
+              studentId: arun.id,
+              companyId: zoho.id,
+              jobId: zohoJob.id,
+              ctc: 8.5,
+              status: 'JOINED',
+            },
+          });
+        }
+      }
+      logger.info('Zoho Corporation placed student records initialized successfully.');
+    }
+  } catch (err: any) {
+    logger.warn({ err: err.message }, 'Non-fatal placement seeding notice.');
+  }
 }
 
 // Run migrations then start server

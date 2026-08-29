@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { formatImageUrl } from '../utils/formatImageUrl';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users, Award } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 
 export default function CompaniesPage() {
   const { 
@@ -19,6 +21,7 @@ export default function CompaniesPage() {
     resolveLocation 
   } = useCompanyStore();
   const { hasPermission } = useAuthStore();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -756,6 +759,95 @@ export default function CompaniesPage() {
                     </div>
                   );
                 })()}
+
+                {/* ─── Placed Candidates Roster & Placement Records ─── */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 text-success" />
+                      <span>Placed Candidates Roster &amp; Hired Students</span>
+                    </h4>
+                    <span className="px-2.5 py-1 bg-success/15 border border-success/30 text-success text-[10px] font-extrabold rounded-full">
+                      {((detailedCompany as any).placements || []).length} Students Placed
+                    </span>
+                  </div>
+
+                  {!((detailedCompany as any).placements) || ((detailedCompany as any).placements).length === 0 ? (
+                    <div className="bg-background-secondary p-4 rounded border border-border-primary text-center text-xs text-text-muted">
+                      No placement offers recorded for {detailedCompany.name} yet.
+                    </div>
+                  ) : (
+                    <div className="border border-border-primary rounded overflow-hidden bg-surface-1 shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-background-tertiary">
+                          <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                            <th className="px-4 py-2.5">Student Name</th>
+                            <th className="px-4 py-2.5">Roll No &amp; Dept</th>
+                            <th className="px-4 py-2.5">Job Designation</th>
+                            <th className="px-4 py-2.5 text-center">Package (CTC)</th>
+                            <th className="px-4 py-2.5 text-center">Offer Status</th>
+                            <th className="px-4 py-2.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-primary text-xs">
+                          {((detailedCompany as any).placements).map((p: any) => (
+                            <tr key={p.id} className="hover:bg-surface-2/60 transition">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {p.student?.studentPhotoUrl ? (
+                                    <img
+                                      src={formatImageUrl(p.student.studentPhotoUrl)}
+                                      className="w-8 h-8 rounded-full object-cover border border-primary/30 flex-shrink-0"
+                                      alt={p.student?.fullName}
+                                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0">
+                                      {p.student?.fullName?.charAt(0).toUpperCase() || 'S'}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="font-bold text-text-primary">{p.student?.fullName}</div>
+                                    <div className="text-[10px] text-text-muted">{p.student?.personalEmail || p.student?.collegeEmail}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="font-mono text-xs font-semibold text-text-primary">{p.student?.rollNumber}</div>
+                                <div className="text-[10px] text-text-muted font-medium">{p.student?.department?.name || p.student?.department?.code}</div>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-text-primary">
+                                {p.job?.jobTitle || p.jobTitle || 'Software Engineer'}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="font-extrabold text-success text-xs bg-success/10 px-2.5 py-1 rounded border border-success/20">
+                                  ₹ {p.ctc || p.job?.ctc || 8.0} LPA
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                                  p.status === 'JOINED'
+                                    ? 'bg-success/15 border-success/30 text-success'
+                                    : 'bg-primary/15 border-primary/30 text-primary'
+                                }`}>
+                                  {p.status || 'OFFERED'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  onClick={() => navigate(`/students/${p.studentId}`)}
+                                  className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                                >
+                                  View Profile &rarr;
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 {/* ─── Job Descriptions with per-job JD edit + Eligible Candidates ─── */}
                 <div className="space-y-3">

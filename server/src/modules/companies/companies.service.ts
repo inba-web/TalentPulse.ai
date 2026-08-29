@@ -81,6 +81,18 @@ export class CompanyService {
         jobs: {
           orderBy: { createdAt: 'desc' },
         },
+        placements: {
+          include: {
+            student: {
+              include: {
+                department: true,
+                links: true,
+              },
+            },
+            job: true,
+          },
+          orderBy: { placedAt: 'desc' },
+        },
       },
     });
 
