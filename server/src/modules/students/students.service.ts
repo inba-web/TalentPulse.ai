@@ -539,28 +539,6 @@ export class StudentService {
           hscPercentage: hsc,
           ugPercentage: ug,
           pgPercentage: pg,
-          githubUrl,
-          linkedinUrl,
-          portfolioUrl,
-          studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image']) || null,
-          selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
-        });
-
-        // Parse row values matching createStudentSchema (mapping column headers)
-        const parsed = createStudentSchema.parse({
-          rollNumber: roll,
-          fullName: name,
-          departmentId: resolvedDeptId,
-          gender: genderInput,
-          hostelStatus: hostelInput,
-          personalEmail: pEmail,
-          collegeEmail: cEmail,
-          mobileNumber: mobile,
-          graduationDate: gradDateVal,
-          sslcPercentage: sslc,
-          hscPercentage: hsc,
-          ugPercentage: ug,
-          pgPercentage: pg,
           githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url', 'github id', 'github_id']) || null,
           linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url', 'linkedin id', 'linkedin_id']) || null,
           portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null,
