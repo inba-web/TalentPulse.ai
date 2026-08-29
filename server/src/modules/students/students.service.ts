@@ -364,24 +364,46 @@ export class StudentService {
       return '';
     };
 
+    const parseNumeric = (val: any): number => {
+      if (val === undefined || val === null) return 0;
+      const str = String(val).replace(/[^0-9.]/g, '');
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    };
+
     const normalizeDeptStr = (s: string): string => {
       return s.toLowerCase().replace(/and/g, '&').replace(/[^a-z0-9&]/g, '');
     };
 
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
-      const rowNum = index + 2; // spreadsheet header is row 1
+      const rowNum = index + 2; // spreadsheet header offset
 
       const roll = getValue(row, ['rollNumber', 'roll Number', 'roll No', 'roll_number', 'rollno', 'register number', 'reg no']);
       const name = getValue(row, ['fullName', 'full Name', 'name', 'full_name', 'student name', 'candidate name']);
 
-      // Skip completely empty spreadsheet rows
+      // 1. Skip completely empty spreadsheet rows
       const hasAnyData = Object.values(row).some(val => val !== undefined && val !== null && String(val).trim() !== '');
       if (!hasAnyData) {
         continue;
       }
 
-      if (!roll || !name) {
+      // 2. Skip title/header/summary/footer rows (e.g. "Average Package / Summary Statistics", "Entities: ...")
+      const combinedRowText = Object.values(row).map(v => String(v)).join(' ').toLowerCase();
+      if (
+        combinedRowText.includes('entities:') ||
+        combinedRowText.includes('average package') ||
+        combinedRowText.includes('summary statistics') ||
+        combinedRowText.includes('grand total') ||
+        combinedRowText.includes('total count')
+      ) {
+        continue; // Skip summary calculation or meta rows silently
+      }
+
+      if (!roll || !name || name.toUpperCase() === 'MISSING') {
+        // If neither roll nor name exists, ignore row if it looks like noise
+        if (!roll && (!name || name.toUpperCase() === 'MISSING')) continue;
+
         errors.push({
           row: rowNum,
           error: `Missing required header/fields. Roll Number: "${roll || 'MISSING'}", Name: "${name || 'MISSING'}". Ensure your spreadsheet has column headers like 'Roll Number' and 'Full Name'.`,
@@ -391,7 +413,7 @@ export class StudentService {
 
       try {
         // Resolve department ID from code or name
-        const deptInput = getValue(row, ['department', 'dept', 'departmentId', 'department_id', 'departmentCode', 'department code', 'branch']);
+        const deptInput = getValue(row, ['department', 'dept', 'departmentId', 'department_id', 'departmentCode', 'department code', 'branch', 'department name']);
         let resolvedDeptId = '';
         if (deptInput) {
           const normInput = normalizeDeptStr(deptInput);
@@ -449,6 +471,15 @@ export class StudentService {
           hostelInput = 'DAY_SCHOLAR'; // Default to DAY_SCHOLAR
         }
 
+        // Normalize placement status
+        let placementStatusInput = getValue(row, ['placementStatus', 'placement Status', 'placement_status', 'status']).toUpperCase();
+        let finalPlacementStatus: PlacementStatus = PlacementStatus.YET_TO_BE_PLACED;
+        if (placementStatusInput.includes('PLACED')) {
+          finalPlacementStatus = PlacementStatus.PLACED;
+        } else if (placementStatusInput.includes('TERMINATED')) {
+          finalPlacementStatus = PlacementStatus.TERMINATED;
+        }
+
         // Normalize graduation date (if year only, append month/day)
         let gradDateVal = getValue(row, ['graduationDate', 'graduation Date', 'graduation_date', 'passing year', 'year of passing', 'grad date']) || '2027-05-31';
         if (/^\d{4}$/.test(gradDateVal)) {
@@ -460,12 +491,12 @@ export class StudentService {
         let cEmail = getValue(row, ['collegeEmail', 'college Email', 'college_email', 'college mail', 'college email address', 'college email id', 'official email', 'official email id', 'institute email']);
         
         if (!pEmail && cEmail) pEmail = cEmail;
-        if (!cEmail) cEmail = pEmail || `${roll || Date.now()}@talentpulse.ai`;
+        if (!cEmail) cEmail = pEmail || `${roll.toLowerCase().replace(/[^a-z0-9]/g, '')}@talentpulse.ai`;
         if (!pEmail) pEmail = cEmail;
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(pEmail)) pEmail = `${roll || Date.now()}@talentpulse.ai`;
-        if (!emailRegex.test(cEmail)) cEmail = `${roll || Date.now()}@talentpulse.ai`;
+        if (!emailRegex.test(pEmail)) pEmail = `${roll.toLowerCase().replace(/[^a-z0-9]/g, '')}@talentpulse.ai`;
+        if (!emailRegex.test(cEmail)) cEmail = `${roll.toLowerCase().replace(/[^a-z0-9]/g, '')}@talentpulse.ai`;
 
         // Clean and normalize mobile number
         let mobile = getValue(row, ['mobileNumber', 'mobile Number', 'mobile_number', 'mobile', 'phone', 'contact', 'phone number', 'mobile no', 'mobile number', 'contact no', 'contact number']);
@@ -482,10 +513,21 @@ export class StudentService {
           mobile = '9' + suffix;
         }
 
+        // Parse percentages safely using parseNumeric
+        const sslc = parseNumeric(getValue(row, ['sslcPercentage', 'sslc Percentage', 'sslc', '10th', '10th percentage', '10th %', 'sslc %']));
+        const hsc = parseNumeric(getValue(row, ['hscPercentage', 'hsc Percentage', 'hsc', '12th', '12th percentage', '12th %', 'hsc %']));
+        const ug = parseNumeric(getValue(row, ['ugPercentage', 'ug Percentage', 'ug', 'ug %', 'ug cgpa', 'ug percentage', 'cgpa']));
+        const pgVal = getValue(row, ['pgPercentage', 'pg Percentage', 'pg', 'pg %', 'pg cgpa', 'pg percentage']);
+        const pg = pgVal ? parseNumeric(pgVal) : null;
+
+        const githubUrl = getValue(row, ['githubUrl', 'github Url', 'github', 'github_url']) || null;
+        const linkedinUrl = getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url']) || null;
+        const portfolioUrl = getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null;
+
         // Parse row values matching createStudentSchema (mapping column headers)
         const parsed = createStudentSchema.parse({
-          rollNumber: roll || `TP-${Date.now()}-${index}`,
-          fullName: name || 'Candidate',
+          rollNumber: roll,
+          fullName: name,
           departmentId: resolvedDeptId,
           gender: genderInput,
           hostelStatus: hostelInput,
@@ -493,40 +535,161 @@ export class StudentService {
           collegeEmail: cEmail,
           mobileNumber: mobile,
           graduationDate: gradDateVal,
-          sslcPercentage: Number(getValue(row, ['sslcPercentage', 'sslc Percentage', 'sslc', '10th', '10th percentage', '10th %', 'sslc %']) || 0),
-          hscPercentage: Number(getValue(row, ['hscPercentage', 'hsc Percentage', 'hsc', '12th', '12th percentage', '12th %', 'hsc %']) || 0),
-          ugPercentage: Number(getValue(row, ['ugPercentage', 'ug Percentage', 'ug', 'ug %', 'ug cgpa', 'ug percentage', 'cgpa']) || 0),
-          pgPercentage: getValue(row, ['pgPercentage', 'pg Percentage', 'pg', 'pg %', 'pg cgpa', 'pg percentage']) ? Number(getValue(row, ['pgPercentage', 'pg Percentage', 'pg', 'pg %', 'pg cgpa', 'pg percentage'])) : null,
-          githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url']) || null,
-          linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url']) || null,
-          portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null,
+          sslcPercentage: sslc,
+          hscPercentage: hsc,
+          ugPercentage: ug,
+          pgPercentage: pg,
+          githubUrl,
+          linkedinUrl,
+          portfolioUrl,
           studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image']) || null,
           selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
         });
 
-        // Unique checks — check roll, email, AND mobile before insert
+        // Check if student with roll number already exists
         const dupRoll = await prisma.student.findUnique({ where: { rollNumber: parsed.rollNumber } });
+        let studentRecord: any = null;
+
         if (dupRoll) {
-          duplicates.push(`Row ${rowNum}: Roll number ${parsed.rollNumber} is a duplicate.`);
-          continue;
+          // Update existing student with latest values from spreadsheet (Upsert)
+          studentRecord = await prisma.student.update({
+            where: { id: dupRoll.id },
+            data: {
+              fullName: parsed.fullName,
+              departmentId: parsed.departmentId,
+              gender: parsed.gender,
+              hostelStatus: parsed.hostelStatus,
+              graduationDate: new Date(parsed.graduationDate),
+              placementStatus: finalPlacementStatus,
+              academics: {
+                upsert: {
+                  create: {
+                    sslcPercentage: parsed.sslcPercentage,
+                    hscPercentage: parsed.hscPercentage,
+                    ugPercentage: parsed.ugPercentage,
+                    pgPercentage: parsed.pgPercentage,
+                  },
+                  update: {
+                    sslcPercentage: parsed.sslcPercentage,
+                    hscPercentage: parsed.hscPercentage,
+                    ugPercentage: parsed.ugPercentage,
+                    pgPercentage: parsed.pgPercentage,
+                  },
+                },
+              },
+              links: {
+                upsert: {
+                  create: {
+                    githubUrl: parsed.githubUrl,
+                    linkedinUrl: parsed.linkedinUrl,
+                    portfolioUrl: parsed.portfolioUrl,
+                  },
+                  update: {
+                    githubUrl: parsed.githubUrl,
+                    linkedinUrl: parsed.linkedinUrl,
+                    portfolioUrl: parsed.portfolioUrl,
+                  },
+                },
+              },
+            },
+          });
+          duplicates.push(`Row ${rowNum}: Student ${parsed.rollNumber} (${parsed.fullName}) updated with latest spreadsheet values.`);
+          successCount++;
+        } else {
+          // Check duplicate email or mobile
+          const dupEmail = await prisma.student.findFirst({
+            where: { OR: [{ personalEmail: parsed.personalEmail }, { collegeEmail: parsed.collegeEmail }] },
+          });
+          if (dupEmail) {
+            duplicates.push(`Row ${rowNum}: Email (${parsed.personalEmail}) is already assigned to another student.`);
+            continue;
+          }
+
+          const dupMobile = await prisma.student.findUnique({ where: { mobileNumber: parsed.mobileNumber } });
+          if (dupMobile) {
+            duplicates.push(`Row ${rowNum}: Mobile (${parsed.mobileNumber}) is already assigned to another student.`);
+            continue;
+          }
+
+          // Insert new student
+          studentRecord = await this.createStudent(parsed);
+          if (finalPlacementStatus === PlacementStatus.PLACED) {
+            await prisma.student.update({
+              where: { id: studentRecord.id },
+              data: { placementStatus: PlacementStatus.PLACED },
+            });
+          }
+          successCount++;
         }
 
-        const dupEmail = await prisma.student.findFirst({
-          where: { OR: [{ personalEmail: parsed.personalEmail }, { collegeEmail: parsed.collegeEmail }] },
-        });
-        if (dupEmail) {
-          duplicates.push(`Row ${rowNum}: Email is already registered.`);
-          continue;
-        }
+        // Process placement details if company / job info is in the row
+        const companyName = getValue(row, ['companyName', 'company Name', 'company_name', 'company', 'employer']);
+        const jobTitle = getValue(row, ['jobTitle', 'job Title', 'job_title', 'designation', 'role', 'title']);
+        const ctcVal = parseNumeric(getValue(row, ['ctc', 'ctc (lpa)', 'ctc_lpa', 'ctc (in lpa)', 'package', 'salary']));
+        const offerStatus = getValue(row, ['offerStatus', 'offer Status', 'offer_status', 'offer status']).toUpperCase() || 'OFFERED';
+        const jobLocation = getValue(row, ['jobLocation', 'job Location', 'location']) || 'India';
 
-        const dupMobile = await prisma.student.findUnique({ where: { mobileNumber: parsed.mobileNumber } });
-        if (dupMobile) {
-          duplicates.push(`Row ${rowNum}: Mobile number ${parsed.mobileNumber} is already registered (duplicate).`);
-          continue;
-        }
+        if (companyName && jobTitle && studentRecord) {
+          // Resolve or create company
+          let company = await prisma.company.findFirst({
+            where: { name: { equals: companyName, mode: 'insensitive' } },
+          });
+          if (!company) {
+            company = await prisma.company.create({
+              data: {
+                name: companyName,
+                contactPerson: 'HR Team',
+                designation: 'Campus Recruiter',
+                contactEmail: `hr@${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+                contactMobile: '9876543210',
+                status: 'HOT',
+              },
+            });
+          }
 
-        // Insert
-        const student = await this.createStudent(parsed);
+          // Resolve or create job
+          let job = await prisma.job.findFirst({
+            where: {
+              companyId: company.id,
+              jobTitle: { equals: jobTitle, mode: 'insensitive' },
+            },
+          });
+          if (!job) {
+            const adminUser = await prisma.user.findFirst({ where: { roleName: 'ADMIN' } });
+            job = await prisma.job.create({
+              data: {
+                companyId: company.id,
+                jobTitle,
+                jdText: `${jobTitle} opportunity at ${companyName}.`,
+                ctc: ctcVal || 6.0,
+                location: jobLocation,
+                status: 'APPROVED',
+                createdById: adminUser?.id || '',
+              },
+            });
+          }
+
+          // Record placement history entry if not already present
+          const existingPlacement = await prisma.studentPlacementHistory.findFirst({
+            where: { studentId: studentRecord.id, jobId: job.id },
+          });
+          if (!existingPlacement) {
+            await prisma.studentPlacementHistory.create({
+              data: {
+                studentId: studentRecord.id,
+                companyId: company.id,
+                jobId: job.id,
+                ctc: ctcVal || job.ctc,
+                status: offerStatus,
+              },
+            });
+            // Ensure student status is set to PLACED
+            await prisma.student.update({
+              where: { id: studentRecord.id },
+              data: { placementStatus: PlacementStatus.PLACED },
+            });
+          }
+        }
 
         // Parse and create resume document if present
         const resumeLink = getValue(row, [
@@ -535,21 +698,25 @@ export class StudentService {
           'Resume Link', 'resume link', 'resume url', 'cv link', 'cv url',
           'google drive', 'drive link',
         ]);
-        if (resumeLink && student) {
-          await prisma.studentDocument.create({
-            data: {
-              studentId: student.id,
-              documentType: 'RESUME',
-              fileUrl: resumeLink,
-              fileKey: `imported-${Date.now()}-${index}`,
-              mimeType: 'application/pdf',
-              fileSize: 0,
-              isLatestResume: true,
-            },
+        if (resumeLink && studentRecord) {
+          const existingResume = await prisma.studentDocument.findFirst({
+            where: { studentId: studentRecord.id, documentType: 'RESUME' },
           });
+          if (!existingResume) {
+            await prisma.studentDocument.create({
+              data: {
+                studentId: studentRecord.id,
+                documentType: 'RESUME',
+                fileUrl: resumeLink,
+                fileKey: `imported-${Date.now()}-${index}`,
+                mimeType: 'application/pdf',
+                fileSize: 0,
+                isLatestResume: true,
+              },
+            });
+          }
         }
 
-        successCount++;
       } catch (error: any) {
         // Catch Prisma unique constraint violations gracefully as duplicates
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -569,7 +736,7 @@ export class StudentService {
     return {
       totalRows: rows.length,
       successCount,
-      errorsCount: errors.length + duplicates.length,
+      errorsCount: errors.length,
       errors,
       duplicates,
     };
