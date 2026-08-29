@@ -1,0 +1,342 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleName {
+  ADMIN
+  MANAGER
+  LEAD
+  RECRUITER
+}
+
+enum OpportunityStatus {
+  COLD
+  WARM
+  HOT
+  DRIVE_COMPLETED
+}
+
+enum JobStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum PlacementStatus {
+  YET_TO_BE_PLACED
+  PLACED
+  TERMINATED
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  passwordHash          String
+  fullName              String
+  roleName              RoleName               @default(RECRUITER)
+  isActive              Boolean                @default(true)
+  isEmailVerified       Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  // Permissions & Custom Overrides
+  customPermissions     UserPermission[]
+  sessions              Session[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  
+  // Auditing
+  auditLogs             AuditLog[]
+  jobSubmissions        Job[]                  @relation("JobCreator")
+  jobApprovals          JobApproval[]          @relation("JobApprover")
+  terminationsCreated   StudentTermination[]   @relation("Terminator")
+  terminationsRevoked   StudentTermination[]   @relation("Revoker")
+}
+
+model Permission {
+  code                  String                 @id // e.g. "STUDENT_READ"
+  description           String
+  roles                 RolePermission[]
+  users                 UserPermission[]
+}
+
+model RolePermission {
+  roleName              RoleName
+  permissionCode        String
+  permission            Permission             @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleName, permissionCode])
+}
+
+model UserPermission {
+  userId                String
+  permissionCode        String
+  granted               Boolean                @default(true) // Can be true (explicit grant) or false (explicit deny)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission            Permission             @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([userId, permissionCode])
+}
+
+model Session {
+  id                    String                 @id @default(uuid())
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent             String?
+  ipAddress             String?
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  expiresAt             DateTime
+}
+
+model RefreshToken {
+  id                    String                 @id @default(uuid())
+  token                 String                 @unique
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isUsed                Boolean                @default(false)
+  isRevoked             Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  expiresAt             DateTime
+}
+
+model PasswordResetToken {
+  id                    String                 @id @default(uuid())
+  token                 String                 @unique
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt             DateTime
+  createdAt             DateTime               @default(now())
+}
+
+model EmailVerificationToken {
+  id                    String                 @id @default(uuid())
+  token                 String                 @unique
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt             DateTime
+  createdAt             DateTime               @default(now())
+}
+
+model Department {
+  id                    String                 @id @default(uuid())
+  name                  String                 @unique // e.g., "Computer Science & Engineering"
+  code                  String                 @unique // e.g., "CSE"
+  students              Student[]
+}
+
+model Student {
+  id                    String                 @id @default(uuid())
+  rollNumber            String                 @unique
+  fullName              String
+  departmentId          String
+  department            Department             @relation(fields: [departmentId], references: [id])
+  gender                String                 // "MALE" | "FEMALE" | "OTHER"
+  hostelStatus          String                 // "HOSTEL" | "DAY_SCHOLAR"
+  personalEmail         String                 @unique
+  collegeEmail          String                 @unique
+  mobileNumber          String                 @unique
+  studentPhotoUrl       String?
+  graduationDate        DateTime
+  placementStatus       PlacementStatus        @default(YET_TO_BE_PLACED)
+
+  // Relationships
+  academics             StudentAcademics?
+  links                 StudentLinks?
+  documents             StudentDocument[]
+  terminations          StudentTermination[]
+  placementHistory      StudentPlacementHistory[]
+  atsAnalyses           ATSAnalysis[]
+
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([rollNumber])
+  @@index([fullName])
+  @@index([personalEmail])
+  @@index([collegeEmail])
+  @@index([mobileNumber])
+  @@index([departmentId])
+}
+
+model StudentAcademics {
+  id                    String                 @id @default(uuid())
+  studentId             String                 @unique
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sslcPercentage        Float
+  hscPercentage         Float
+  ugPercentage          Float
+  pgPercentage          Float?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model StudentLinks {
+  id                    String                 @id @default(uuid())
+  studentId             String                 @unique
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  githubUrl             String?
+  linkedinUrl           String?
+  portfolioUrl          String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model StudentDocument {
+  id                    String                 @id @default(uuid())
+  studentId             String
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documentType          String                 // "RESUME" | "MARKINGSHEET" | "OTHER"
+  fileUrl               String
+  fileKey               String                 // Reference key in storage provider
+  mimeType              String
+  fileSize              Int
+  isLatestResume        Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+}
+
+model StudentTermination {
+  id                    String                 @id @default(uuid())
+  studentId             String
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reason                String
+  terminatedById        String
+  terminatedBy          User                   @relation("Terminator", fields: [terminatedById], references: [id])
+  terminatedAt          DateTime               @default(now())
+  revokedById           String?
+  revokedBy             User?                  @relation("Revoker", fields: [revokedById], references: [id])
+  revokedAt             DateTime?
+  isActive              Boolean                @default(true)
+}
+
+model Company {
+  id                    String                 @id @default(uuid())
+  name                  String                 @unique
+  website               String?
+  employeeSize          Int?
+  industry              String?
+  exactAddress          String?
+  latitude              Float?
+  longitude             Float?
+  placeId               String?
+  mapsUrl               String?
+  contactPerson         String
+  designation           String
+  contactEmail          String
+  contactMobile         String
+  status                OpportunityStatus      @default(COLD)
+  jobs                  Job[]
+  placements            StudentPlacementHistory[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+model Job {
+  id                    String                 @id @default(uuid())
+  companyId             String
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobTitle              String
+  jdText                String                 @db.Text
+  jdPdfUrl              String?
+  jdLink                String?
+  ctc                   Float                  // In LPA
+  location              String
+  status                JobStatus              @default(DRAFT)
+  
+  // Authoring
+  createdById           String
+  createdBy             User                   @relation("JobCreator", fields: [createdById], references: [id])
+  
+  // Approval metadata
+  approval              JobApproval?
+  atsAnalyses           ATSAnalysis[]
+  placements            StudentPlacementHistory[]
+
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([status])
+  @@index([companyId])
+}
+
+model JobApproval {
+  id                    String                 @id @default(uuid())
+  jobId                 String                 @unique
+  job                   Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  submittedAt           DateTime               @default(now())
+  reviewedById          String?
+  reviewedBy            User?                  @relation("JobApprover", fields: [reviewedById], references: [id])
+  reviewedAt            DateTime?
+  comment               String?
+}
+
+model StudentPlacementHistory {
+  id                    String                 @id @default(uuid())
+  studentId             String
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company                @relation(fields: [companyId], references: [id])
+  jobId                 String
+  job                   Job                    @relation(fields: [jobId], references: [id])
+  ctc                   Float
+  placedAt              DateTime               @default(now())
+  status                String                 // e.g. "OFFERED" | "JOINED"
+
+  @@index([studentId])
+  @@index([companyId])
+}
+
+model ATSAnalysis {
+  id                    String                 @id @default(uuid())
+  studentId             String
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  jobId                 String
+  job                   Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resumeVersion         String                 // File hash or updatedAt timestamp of resume document
+  jobVersion            String                 // Job updatedAt timestamp
+  
+  // Deterministic engine breakdown
+  technicalMatchScore   Float
+  experienceScore       Float
+  educationScore        Float
+  projectScore          Float
+  keywordScore          Float
+  qualityScore          Float
+  overallScore          Float                  // Weighted sum
+  
+  // AI metadata
+  matchedSkills         String[]
+  missingSkills         String[]
+  semanticEvidence      String[]
+  matchingExplanations  String[]
+  
+  createdAt             DateTime               @default(now())
+
+  @@unique([studentId, jobId, resumeVersion, jobVersion])
+}
+
+model AuditLog {
+  id                    String                 @id @default(uuid())
+  action                String                 // e.g. "LOGIN", "STUDENT_TERMINATED"
+  actorId               String?
+  actor                 User?                  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  entity                String                 // e.g. "Student", "Job"
+  entityId              String?
+  metadata              Json?                  // Extra context
+  ipAddress             String?
+  requestId             String                 @default(uuid())
+  createdAt             DateTime               @default(now())
+
+  @@index([actorId])
+  @@index([createdAt])
+}
