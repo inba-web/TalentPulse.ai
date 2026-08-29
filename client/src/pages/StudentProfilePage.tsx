@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStudentStore } from '../store/studentStore';
 import StatusBadge from '../components/StatusBadge';
@@ -79,7 +80,7 @@ export default function StudentProfilePage() {
   useEffect(() => {
     const loadDepts = async () => {
       try {
-        const res = await fetch('/api/students/departments');
+        const res = await apiFetch('/api/students/departments');
         const result = await res.json();
         if (result.success) {
           setDepts(result.data);
@@ -171,7 +172,7 @@ export default function StudentProfilePage() {
 
   const loadJobs = async () => {
     try {
-      const response = await fetch('/api/jobs?limit=100&status=APPROVED');
+      const response = await apiFetch('/api/jobs?limit=100&status=APPROVED');
       const result = await response.json();
       if (result.success) {
         setAvailableJobs(result.data.jobs || []);
@@ -190,7 +191,7 @@ export default function StudentProfilePage() {
     if (!selectedJobId || !id) return;
     setEvaluating(true);
     try {
-      const response = await fetch('/api/ats/resume/analyze', {
+      const response = await apiFetch('/api/ats/resume/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId: id, jobId: selectedJobId }),
@@ -350,6 +351,60 @@ export default function StudentProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Resume Viewer Card */}
+          {resumesList.length > 0 && (
+            <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">
+              <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <span>Resume / CV Document</span>
+              </h3>
+
+              {resumesList.map((doc: any, idx: number) => {
+                // Convert Google Drive share links to preview-embeddable URLs
+                const rawUrl: string = doc.fileUrl || '';
+                let embedUrl = rawUrl;
+                let downloadUrl = rawUrl;
+
+                const driveMatch = rawUrl.match(/\/file\/d\/([^\/]+)/);
+                if (driveMatch) {
+                  const fileId = driveMatch[1];
+                  embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+                  downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                }
+
+                return (
+                  <div key={doc.id || idx} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-semibold text-text-secondary">
+                        {idx === 0 ? 'Latest Resume' : `Resume ${idx + 1}`}
+                        {doc.isLatestResume && (
+                          <span className="ml-2 text-[9px] font-bold bg-success/10 text-success border border-success/20 px-1.5 py-0.5 rounded">CURRENT</span>
+                        )}
+                      </div>
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded border border-primary/20 transition"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Resume</span>
+                      </a>
+                    </div>
+                    <div className="border border-border-primary rounded overflow-hidden bg-background-secondary">
+                      <iframe
+                        src={embedUrl}
+                        title="Resume Preview"
+                        className="w-full h-[480px]"
+                        allow="autoplay"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Placement History */}
           <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">

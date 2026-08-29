@@ -13,8 +13,9 @@ import {
   Search,
   Menu,
   X,
-  User as UserIcon,
   Settings,
+  FileSearch,
+  AlertTriangle,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 
@@ -24,11 +25,13 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const { user, logout, hasPermission } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = async () => {
+    setSignOutOpen(false);
     await logout();
     navigate('/login');
   };
@@ -67,7 +70,7 @@ export default function AppShell({ children }: AppShellProps) {
     {
       name: 'JD Matcher',
       path: '/jd-matcher',
-      icon: BrainCircuit,
+      icon: FileSearch,
       show: hasPermission('ATS_ANALYSIS'),
     },
     {
@@ -75,6 +78,12 @@ export default function AppShell({ children }: AppShellProps) {
       path: '/reports',
       icon: FileBarChart2,
       show: hasPermission('REPORT_READ'),
+    },
+    {
+      name: 'Audit Logs',
+      path: '/audit',
+      icon: ShieldCheck,
+      show: hasPermission('AUDIT_READ'),
     },
     {
       name: 'Settings',
@@ -100,7 +109,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Mobile Header */}
       <header className="md:hidden flex justify-between items-center bg-surface-2 text-text-primary px-4 h-16 border-b border-border-secondary">
         <div className="flex items-center gap-2.5">
-          <img src="/assets/talentpulse_logo.png" className="w-6 h-6 object-contain" alt="Logo" />
+          <img src="/assets/talentpulse_logo.png" className="w-7 h-7 object-contain" alt="Logo" />
           <span className="font-extrabold text-lg tracking-tight text-text-primary">TalentPulse<span className="text-primary">.ai</span></span>
         </div>
         <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-surface-elevated rounded">
@@ -118,10 +127,16 @@ export default function AppShell({ children }: AppShellProps) {
         className={`fixed md:sticky top-0 left-0 bottom-0 z-40 w-64 bg-background-secondary text-text-secondary flex flex-col border-r border-border-primary transform md:transform-none transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
-        <div className="h-16 px-6 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
-          <div className="flex items-center gap-2.5">
-            <img src="/assets/talentpulse_logo.png" className="w-7 h-7 object-contain" alt="Logo" />
-            <span className="font-extrabold text-xl tracking-tight text-text-primary">TalentPulse<span className="text-primary">.ai</span></span>
+        {/* Logo Area — Larger & More Prominent */}
+        <div className="px-5 py-5 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-gradient-primary rounded glow-primary">
+              <img src="/assets/talentpulse_logo.png" className="w-9 h-9 object-contain" alt="TalentPulse Logo" />
+            </div>
+            <div>
+              <div className="font-extrabold text-base tracking-tight text-text-primary leading-tight">TalentPulse<span className="text-primary">.ai</span></div>
+              <div className="text-[9px] text-text-muted font-bold uppercase tracking-widest">Placement Portal</div>
+            </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 hover:bg-surface-elevated rounded">
             <X className="w-5 h-5 text-text-muted" />
@@ -154,7 +169,7 @@ export default function AppShell({ children }: AppShellProps) {
         <div className="p-4 border-t border-border-primary bg-background-tertiary flex flex-col gap-2">
           {user && (
             <div className="flex items-center gap-3 px-2 py-1.5">
-              <div className="w-9 h-9 rounded-full bg-surface-2 border border-border-secondary flex justify-center items-center text-primary font-bold text-sm">
+              <div className="w-9 h-9 rounded-full bg-gradient-primary flex justify-center items-center text-white font-bold text-sm glow-primary">
                 {user.fullName.substring(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -165,8 +180,8 @@ export default function AppShell({ children }: AppShellProps) {
           )}
 
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-text-muted hover:bg-error/10 hover:text-error border border-transparent hover:border-error/20 transition duration-150"
+            onClick={() => setSignOutOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-semibold text-text-muted hover:bg-error/10 hover:text-error border border-transparent hover:border-error/20 transition duration-150 cursor-pointer"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             <span>Sign Out</span>
@@ -188,7 +203,7 @@ export default function AppShell({ children }: AppShellProps) {
                 const event = new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' });
                 window.dispatchEvent(event);
               }}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-border-primary hover:border-border-hover bg-background-secondary text-text-muted transition duration-150 cursor-pointer"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded border border-border-primary hover:border-border-hover bg-background-secondary text-text-muted transition duration-150 cursor-pointer"
             >
               <Search className="w-4 h-4" />
               <span className="text-xs font-medium">Search records...</span>
@@ -203,7 +218,7 @@ export default function AppShell({ children }: AppShellProps) {
                   <div className="text-xs font-bold text-text-primary">{user.fullName}</div>
                   <div className="text-[9px] font-extrabold text-primary uppercase tracking-widest">{user.roleName}</div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-surface-2 flex justify-center items-center text-primary font-bold text-xs border border-border-primary">
+                <div className="w-8 h-8 rounded-full bg-gradient-primary flex justify-center items-center text-white font-bold text-xs glow-primary">
                   {user.fullName.charAt(0).toUpperCase()}
                 </div>
               </div>
@@ -219,6 +234,43 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Central Global Search Overlay */}
       <CommandPalette />
+
+      {/* Sign Out Confirmation Dialog */}
+      {signOutOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface-1 w-full max-w-sm rounded border border-border-primary shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="p-3 bg-error/10 rounded-full border border-error/20">
+                  <AlertTriangle className="w-6 h-6 text-error" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-text-primary">Sign Out?</h3>
+                  <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                    You will be signed out of your current session and redirected to the login page.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setSignOutOpen(false)}
+                  className="flex-1 h-10 border border-border-primary rounded text-sm font-semibold text-text-secondary hover:bg-surface-2 transition cursor-pointer bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 h-10 bg-error hover:brightness-110 text-white text-sm font-bold rounded flex items-center justify-center gap-2 transition border-0 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

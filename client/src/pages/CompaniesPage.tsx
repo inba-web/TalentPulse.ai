@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw } from 'lucide-react';
+import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export default function CompaniesPage() {
@@ -48,7 +49,7 @@ export default function CompaniesPage() {
   useEffect(() => {
     const loadIndustries = async () => {
       try {
-        const res = await fetch('/api/companies/industries');
+        const res = await apiFetch('/api/companies/industries');
         const result = await res.json();
         if (result.success) {
           setIndustries(result.data);
@@ -110,6 +111,116 @@ export default function CompaniesPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [locationCandidates, setLocationCandidates] = useState<any[]>([]);
   const [resolvingLoading, setResolvingLoading] = useState(false);
+
+  // Company JD candidates state
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [jobCandidates, setJobCandidates] = useState<Record<string, any[]>>({});
+  const [jobCandidatesLoading, setJobCandidatesLoading] = useState<Record<string, boolean>>({});
+
+  // JD Upload + Evaluate state (within company detail)
+  const [jdText, setJdText] = useState('');
+  const [jdFile, setJdFile] = useState<File | null>(null);
+  const [jdEvaluating, setJdEvaluating] = useState(false);
+  const [jdResults, setJdResults] = useState<any[]>([]);
+  const [jdError, setJdError] = useState('');
+  const [jdResultsExpanded, setJdResultsExpanded] = useState(false);
+
+  // Job JD edit state (edit jdText per job in view modal)
+  const [editJdJobId, setEditJdJobId] = useState<string | null>(null);
+  const [editJdText, setEditJdText] = useState('');
+  const [editJdSaving, setEditJdSaving] = useState(false);
+
+  const handleEvaluateJd = async () => {
+    setJdEvaluating(true);
+    setJdError('');
+    setJdResults([]);
+    try {
+      let res: Response;
+      if (jdFile) {
+        const fd = new FormData();
+        fd.append('file', jdFile);
+        if (jdText.trim()) fd.append('jdText', jdText);
+        res = await apiFetch('/api/ats/jd/analyze', { method: 'POST', body: fd });
+      } else {
+        res = await apiFetch('/api/ats/jd/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jdText }),
+        });
+      }
+      const result = await res.json();
+      if (result.success) {
+        setJdResults(result.data || []);
+        setJdResultsExpanded(true);
+      } else {
+        setJdError(result.error?.message || 'Evaluation failed.');
+      }
+    } catch (err: any) {
+      setJdError(err.message || 'Network error during evaluation.');
+    } finally {
+      setJdEvaluating(false);
+    }
+  };
+
+  const handleSaveJobJd = async (jobId: string) => {
+    setEditJdSaving(true);
+    try {
+      const res = await apiFetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jdText: editJdText }),
+      });
+      const result = await res.json();
+      if (result.success && detailedCompany) {
+        // Update the local jobs list
+        setDetailedCompany((prev: any) => ({
+          ...prev,
+          jobs: prev.jobs.map((j: any) => j.id === jobId ? { ...j, jdText: editJdText } : j),
+        }));
+      }
+      setEditJdJobId(null);
+    } catch (err) {
+      console.error('Failed to save JD text:', err);
+    } finally {
+      setEditJdSaving(false);
+    }
+  };
+
+  const handleDeleteJobJd = async (jobId: string) => {
+    if (!confirm('Clear the JD text for this job?')) return;
+    const res = await apiFetch(`/api/jobs/${jobId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jdText: '' }),
+    });
+    const result = await res.json();
+    if (result.success && detailedCompany) {
+      setDetailedCompany((prev: any) => ({
+        ...prev,
+        jobs: prev.jobs.map((j: any) => j.id === jobId ? { ...j, jdText: '' } : j),
+      }));
+    }
+  };
+
+  const fetchJobCandidates = async (jobId: string) => {
+    if (jobCandidates[jobId]) {
+      setExpandedJobId(prev => prev === jobId ? null : jobId);
+      return;
+    }
+    setExpandedJobId(jobId);
+    setJobCandidatesLoading(prev => ({ ...prev, [jobId]: true }));
+    try {
+      const res = await apiFetch(`/api/ats/jobs/${jobId}/candidates`);
+      const result = await res.json();
+      if (result.success) {
+        setJobCandidates(prev => ({ ...prev, [jobId]: result.data || [] }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch job candidates:', err);
+    } finally {
+      setJobCandidatesLoading(prev => ({ ...prev, [jobId]: false }));
+    }
+  };
 
   useEffect(() => {
     fetchCompanies({ search, status, page, limit: 10 });
@@ -450,14 +561,14 @@ export default function CompaniesPage() {
       {/* View Details Modal */}
       {viewOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-black/60 backdrop-blur-sm flex justify-center items-center">
-          <div className="bg-surface-1 max-w-2xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-surface-1 max-w-3xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary">
               <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
                 <span>{detailedCompany?.name || 'Company Profile'}</span>
               </h3>
               <button
-                onClick={() => setViewOpen(false)}
+                onClick={() => { setViewOpen(false); setExpandedJobId(null); setJdResults([]); setJdText(''); setJdFile(null); setEditJdJobId(null); }}
                 className="p-1 hover:bg-surface-2 rounded text-text-secondary hover:text-text-primary transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -472,66 +583,294 @@ export default function CompaniesPage() {
             ) : !detailedCompany ? (
               <div className="text-center py-16 text-error">Failed to load detailed profile.</div>
             ) : (
-              <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-                {/* Location Information */}
+              <div className="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+
+                {/* ─── JD Upload + Evaluate Section ─── */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Office Location & Places Info</h4>
+                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Upload JD &amp; Evaluate Candidates</span>
+                  </h4>
+                  <div className="bg-background-secondary border border-border-primary rounded p-4 space-y-3">
+                    <textarea
+                      rows={4}
+                      className="w-full px-3 py-2 text-xs border border-border-primary rounded bg-background-tertiary text-text-primary placeholder-text-disabled focus:border-primary outline-none transition resize-none font-mono"
+                      placeholder="Paste Job Description text here... (or upload a PDF below)"
+                      value={jdText}
+                      onChange={(e) => setJdText(e.target.value)}
+                    />
+                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                      <label className="flex items-center gap-2 px-3 py-2 bg-surface-2 border border-border-primary rounded text-xs font-semibold text-text-secondary hover:text-text-primary hover:border-border-hover cursor-pointer transition">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <span>{jdFile ? jdFile.name : 'Upload JD PDF'}</span>
+                        <input type="file" accept=".pdf" className="hidden" onChange={(e) => setJdFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {jdFile && (
+                        <button onClick={() => setJdFile(null)} className="text-[10px] text-error font-bold hover:underline cursor-pointer border-0 bg-transparent">
+                          Remove PDF
+                        </button>
+                      )}
+                      <div className="flex-1" />
+                      <button
+                        onClick={handleEvaluateJd}
+                        disabled={jdEvaluating || (!jdText.trim() && !jdFile)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-white text-xs font-bold rounded border-0 hover:brightness-110 disabled:opacity-50 transition cursor-pointer"
+                      >
+                        {jdEvaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                        <span>{jdEvaluating ? 'Evaluating...' : 'Evaluate Against All Candidates'}</span>
+                      </button>
+                    </div>
+                    {jdError && <div className="text-xs text-error font-semibold">{jdError}</div>}
+                  </div>
+
+                  {/* JD Results */}
+                  {jdResults.length > 0 && (
+                    <div className="border border-border-primary rounded overflow-hidden">
+                      <div className="bg-background-secondary px-4 py-2.5 flex items-center justify-between border-b border-border-primary">
+                        <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Candidate Rankings — {jdResults.length} candidates evaluated</span>
+                        </div>
+                        <button onClick={() => setJdResultsExpanded(p => !p)} className="text-[10px] text-primary font-bold cursor-pointer border-0 bg-transparent hover:underline">
+                          {jdResultsExpanded ? 'Collapse' : 'Expand'}
+                        </button>
+                      </div>
+                      {jdResultsExpanded && (
+                        <div className="max-h-64 overflow-y-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-background-tertiary">
+                              <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                                <th className="px-3 py-2">#</th>
+                                <th className="px-3 py-2">Candidate</th>
+                                <th className="px-3 py-2">Dept</th>
+                                <th className="px-3 py-2 text-center">ATS Score</th>
+                                <th className="px-3 py-2">Matched Skills</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-primary">
+                              {jdResults.map((c: any, i: number) => (
+                                <tr key={c.studentId} className="hover:bg-surface-2 text-xs">
+                                  <td className="px-3 py-2 font-bold text-text-muted">{i + 1}</td>
+                                  <td className="px-3 py-2">
+                                    <div className="font-semibold text-text-primary">{c.fullName}</div>
+                                    <div className="text-[10px] text-text-muted font-mono">{c.rollNumber}</div>
+                                  </td>
+                                  <td className="px-3 py-2 text-text-secondary">{c.department}</td>
+                                  <td className="px-3 py-2 text-center">
+                                    <span className={`font-extrabold text-sm ${
+                                      c.atsScore >= 70 ? 'text-success' : c.atsScore >= 50 ? 'text-warning' : 'text-error'
+                                    }`}>{c.atsScore}</span>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <div className="flex flex-wrap gap-1">
+                                      {(c.matchedSkills || []).slice(0, 3).map((s: string) => (
+                                        <span key={s} className="text-[9px] px-1.5 py-0.5 bg-success/10 text-success border border-success/20 rounded font-bold uppercase">{s}</span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ─── Office Location ─── */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Office Location &amp; Places Info</h4>
                   <div className="bg-background-secondary p-4 rounded border border-border-primary space-y-2.5">
                     <div className="flex items-start gap-2.5 text-xs text-text-secondary">
-                      <MapPin className="w-4.5 h-4.5 text-primary flex-shrink-0 mt-0.5" />
+                      <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-bold text-text-primary">Corporate Office Address</div>
                         <div className="mt-1 leading-normal">{detailedCompany.exactAddress || 'No verified address resolver records.'}</div>
                       </div>
                     </div>
                     {detailedCompany.mapsUrl && (
-                      <a
-                        href={detailedCompany.mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block text-xs font-bold text-primary hover:underline pl-7"
-                      >
+                      <a href={detailedCompany.mapsUrl} target="_blank" rel="noreferrer" className="inline-block text-xs font-bold text-primary hover:underline pl-7">
                         View coordinates on Google Maps &rarr;
                       </a>
                     )}
                   </div>
                 </div>
 
-                {/* Job Postings and CTCs */}
+                {/* ─── Job Descriptions with per-job JD edit + Eligible Candidates ─── */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Active Job Descriptions & CTCs</h4>
+                  <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Job Descriptions &amp; Eligible Candidates</h4>
                   {!detailedCompany.jobs || detailedCompany.jobs.length === 0 ? (
                     <div className="text-center py-8 bg-background-secondary rounded border border-border-primary text-xs text-text-muted">
                       No active job postings registered for this company.
                     </div>
                   ) : (
-                    <div className="border border-border-primary rounded overflow-hidden">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-background-tertiary border-b border-border-primary text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                            <th className="px-4 py-3">Role / Job Title</th>
-                            <th className="px-4 py-3 text-center">Average CTC Package</th>
-                            <th className="px-4 py-3 text-right">Approval Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-primary text-xs text-text-secondary">
-                          {detailedCompany.jobs.map((job: any) => (
-                            <tr key={job.id} className="hover:bg-surface-2 transition duration-150">
-                              <td className="px-4 py-3 font-semibold text-text-primary">{job.jobTitle}</td>
-                              <td className="px-4 py-3 text-center font-bold text-success">{job.averageCtc} LPA</td>
-                              <td className="px-4 py-3 text-right">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
-                                  job.status === 'APPROVED' 
+                    <div className="space-y-3">
+                      {detailedCompany.jobs.map((job: any) => (
+                        <div key={job.id} className="border border-border-primary rounded overflow-hidden">
+                          {/* Job Header */}
+                          <div className="bg-background-secondary px-4 py-3 flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-bold text-text-primary">{job.jobTitle}</div>
+                              <div className="flex items-center gap-3 mt-0.5">
+                                <span className="text-xs text-success font-bold">{job.averageCtc} LPA</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border uppercase ${
+                                  job.status === 'APPROVED'
                                     ? 'bg-success/10 border-success/20 text-success'
                                     : 'bg-warning/10 border-warning/20 text-warning'
                                 }`}>
                                   {job.status}
                                 </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {/* JD Edit button — only for ADMIN/LEAD/MANAGER */}
+                              {hasPermission('JOB_UPDATE') && (
+                                <button
+                                  onClick={() => { setEditJdJobId(job.id); setEditJdText(job.jdText || ''); }}
+                                  title="Edit JD text"
+                                  className="w-8 h-8 flex items-center justify-center bg-surface-2 border border-border-primary hover:border-primary hover:text-primary text-text-muted rounded transition cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {/* JD Delete button */}
+                              {hasPermission('JOB_UPDATE') && job.jdText && (
+                                <button
+                                  onClick={() => handleDeleteJobJd(job.id)}
+                                  title="Clear JD text"
+                                  className="w-8 h-8 flex items-center justify-center bg-surface-2 border border-border-primary hover:border-error hover:text-error text-text-muted rounded transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => fetchJobCandidates(job.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded border border-primary/20 transition cursor-pointer"
+                              >
+                                {jobCandidatesLoading[job.id] ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Users className="w-3.5 h-3.5" />
+                                )}
+                                <span>Eligible</span>
+                                {expandedJobId === job.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* JD Edit Inline Form */}
+                          {editJdJobId === job.id && (
+                            <div className="px-4 py-3 border-t border-border-primary bg-background-secondary space-y-2">
+                              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Edit Job Description Text</div>
+                              <textarea
+                                rows={5}
+                                className="w-full px-3 py-2 text-xs border border-border-primary rounded bg-background-tertiary text-text-primary focus:border-primary outline-none transition resize-none font-mono"
+                                value={editJdText}
+                                onChange={(e) => setEditJdText(e.target.value)}
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  onClick={() => setEditJdJobId(null)}
+                                  className="px-3 py-1.5 border border-border-primary text-text-secondary text-xs font-semibold rounded hover:bg-surface-2 transition cursor-pointer bg-transparent"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleSaveJobJd(job.id)}
+                                  disabled={editJdSaving}
+                                  className="px-3 py-1.5 bg-primary text-white text-xs font-bold rounded border-0 hover:brightness-110 disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5"
+                                >
+                                  {editJdSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                                  Save JD
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* JD Text (read-only view) */}
+                          {job.jdText && editJdJobId !== job.id && (
+                            <div className="px-4 py-3 border-t border-border-primary">
+                              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Job Description</span>
+                              </div>
+                              <div className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto bg-background-secondary p-3 rounded border border-border-primary font-mono">
+                                {job.jdText}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Eligible Candidates Table (read-only — no student profile links for LEAD) */}
+                          {expandedJobId === job.id && (
+                            <div className="px-4 py-3 border-t border-border-primary">
+                              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5" />
+                                <span>Eligible Candidates — Ranked by ATS Score</span>
+                              </div>
+                              {jobCandidatesLoading[job.id] ? (
+                                <div className="text-center py-6 text-text-muted">
+                                  <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto mb-1" />
+                                  <span className="text-xs">Evaluating resumes...</span>
+                                </div>
+                              ) : !jobCandidates[job.id] || jobCandidates[job.id].length === 0 ? (
+                                <div className="text-center py-6 text-xs text-text-muted">No eligible candidates found for this job opening.</div>
+                              ) : (
+                                <div className="border border-border-primary rounded overflow-hidden">
+                                  <table className="w-full text-left border-collapse">
+                                    <thead>
+                                      <tr className="bg-background-tertiary text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                                        <th className="px-3 py-2">#</th>
+                                        <th className="px-3 py-2">Candidate</th>
+                                        <th className="px-3 py-2">Dept</th>
+                                        <th className="px-3 py-2 text-center">ATS Score</th>
+                                        <th className="px-3 py-2">Top Skills</th>
+                                        {hasPermission('STUDENT_READ') && <th className="px-3 py-2">Profile</th>}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border-primary">
+                                      {jobCandidates[job.id].slice(0, 15).map((c: any, i: number) => (
+                                        <tr key={c.studentId} className="hover:bg-surface-2 text-xs">
+                                          <td className="px-3 py-2 font-bold text-text-muted">{i + 1}</td>
+                                          <td className="px-3 py-2">
+                                            <div className="font-semibold text-text-primary">{c.fullName}</div>
+                                            <div className="text-[10px] text-text-muted font-mono">{c.rollNumber}</div>
+                                          </td>
+                                          <td className="px-3 py-2 text-text-secondary">{c.department}</td>
+                                          <td className="px-3 py-2 text-center">
+                                            <span className={`font-extrabold text-sm ${
+                                              c.atsScore >= 70 ? 'text-success' : c.atsScore >= 50 ? 'text-warning' : 'text-error'
+                                            }`}>{c.atsScore}</span>
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <div className="flex flex-wrap gap-1">
+                                              {(c.matchedSkills || []).slice(0, 3).map((s: string) => (
+                                                <span key={s} className="text-[9px] px-1.5 py-0.5 bg-success/10 text-success border border-success/20 rounded font-bold uppercase">{s}</span>
+                                              ))}
+                                            </div>
+                                          </td>
+                                          {hasPermission('STUDENT_READ') && (
+                                            <td className="px-3 py-2">
+                                              <a
+                                                href={`/students/${c.studentId}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-[10px] font-bold text-primary hover:underline"
+                                              >
+                                                View Profile →
+                                              </a>
+                                            </td>
+                                          )}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

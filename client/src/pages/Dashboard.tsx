@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import KpiCard from '../components/KpiCard';
 import { useJobStore } from '../store/jobStore';
 import { useAuthStore } from '../store/authStore';
@@ -42,7 +43,7 @@ export default function Dashboard() {
   const fetchStats = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const response = await fetch('/api/reports/overview');
+      const response = await apiFetch('/api/reports/overview');
       const result = await response.json();
       if (result.success) {
         setStats(result.data);
@@ -197,8 +198,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Actionable items section */}
-      {jobs.filter((j) => j.status === 'PENDING_APPROVAL').length > 0 && (
+      {/* Actionable items section — only for ADMIN/MANAGER who can approve */}
+      {['ADMIN', 'MANAGER'].includes(authUser?.roleName || '') &&
+        jobs.filter((j) => j.status === 'PENDING_APPROVAL').length > 0 && (
         <div className="bg-surface-1 p-6 rounded-lg border border-border-primary space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-xs font-bold text-warning uppercase tracking-wider flex items-center gap-2">

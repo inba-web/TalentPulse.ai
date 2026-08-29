@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useRecruiterStore } from '../store/recruiterStore';
 import { Upload, BrainCircuit, Loader2, Trophy, ArrowRight, Eye, RefreshCw, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';

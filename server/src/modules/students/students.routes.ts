@@ -33,5 +33,6 @@ studentsRouter.post(
 // Terminations
 studentsRouter.post('/:id/terminate', hasPermission('STUDENT_DELETE'), StudentController.terminateStudent);
 studentsRouter.post('/:id/revoke-termination', hasPermission('STUDENT_DELETE'), StudentController.revokeTermination);
+studentsRouter.post('/:id/recover', hasPermission('STUDENT_DELETE'), StudentController.recoverStudent);
 
 export default studentsRouter;

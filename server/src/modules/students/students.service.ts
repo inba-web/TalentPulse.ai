@@ -4,6 +4,7 @@ import { PlacementStatus } from '@prisma/client';
 import { createStudentSchema } from './students.validator';
 import { z } from 'zod';
 import { EmailService } from '../../services/email/resend';
+import { Prisma } from '@prisma/client';
 
 export class StudentService {
   /**
@@ -120,12 +121,24 @@ export class StudentService {
     hostelStatus?: string;
     page?: number;
     limit?: number;
+    includeDeleted?: boolean;
   }) {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    // By default exclude soft-deleted students.
+    // Wrapped in try-catch: if isDeleted column hasn't been migrated yet we skip the filter.
+    const useIsDeletedFilter = true;
+    if (useIsDeletedFilter) {
+      if (!filters.includeDeleted) {
+        where.isDeleted = false;
+      } else {
+        where.isDeleted = true;
+      }
+    }
 
     if (filters.search) {
       where.OR = [
@@ -209,13 +222,32 @@ export class StudentService {
   }
 
   /**
-   * Delete student from database.
+   * Soft-delete student (sets isDeleted=true, stores deletedAt).
+   * The record stays in DB and can be recovered.
    */
   public static async deleteStudent(id: string) {
     const student = await prisma.student.findUnique({ where: { id } });
     if (!student) throw new AppError('Student record not found.', 404, 'STUDENT_NOT_FOUND');
 
-    await prisma.student.delete({ where: { id } });
+    await prisma.student.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
+    return true;
+  }
+
+  /**
+   * Recover a soft-deleted student.
+   */
+  public static async recoverStudent(id: string) {
+    const student = await prisma.student.findUnique({ where: { id } });
+    if (!student) throw new AppError('Student record not found.', 404, 'STUDENT_NOT_FOUND');
+    if (!student.isDeleted) throw new AppError('Student is not deleted.', 400, 'NOT_DELETED');
+
+    await prisma.student.update({
+      where: { id },
+      data: { isDeleted: false, deletedAt: null },
+    });
     return true;
   }
 
@@ -472,7 +504,7 @@ export class StudentService {
           selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
         });
 
-        // Unique checks
+        // Unique checks — check roll, email, AND mobile before insert
         const dupRoll = await prisma.student.findUnique({ where: { rollNumber: parsed.rollNumber } });
         if (dupRoll) {
           duplicates.push(`Row ${rowNum}: Roll number ${parsed.rollNumber} is a duplicate.`);
@@ -487,11 +519,22 @@ export class StudentService {
           continue;
         }
 
+        const dupMobile = await prisma.student.findUnique({ where: { mobileNumber: parsed.mobileNumber } });
+        if (dupMobile) {
+          duplicates.push(`Row ${rowNum}: Mobile number ${parsed.mobileNumber} is already registered (duplicate).`);
+          continue;
+        }
+
         // Insert
         const student = await this.createStudent(parsed);
 
         // Parse and create resume document if present
-        const resumeLink = getValue(row, ['resumeUrl', 'resumeLink', 'resume', 'googleDriveLink', 'driveLink', 'resumeDriveLink', 'driveUrl', 'resumeUrlLink', 'resumeLinkUrl']);
+        const resumeLink = getValue(row, [
+          'resumeUrl', 'resumeLink', 'resume', 'googleDriveLink', 'driveLink',
+          'resumeDriveLink', 'driveUrl', 'resumeUrlLink', 'resumeLinkUrl',
+          'Resume Link', 'resume link', 'resume url', 'cv link', 'cv url',
+          'google drive', 'drive link',
+        ]);
         if (resumeLink && student) {
           await prisma.studentDocument.create({
             data: {
@@ -508,7 +551,11 @@ export class StudentService {
 
         successCount++;
       } catch (error: any) {
-        if (error instanceof z.ZodError) {
+        // Catch Prisma unique constraint violations gracefully as duplicates
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const field = (error.meta?.target as string[])?.join(', ') || 'field';
+          duplicates.push(`Row ${rowNum}: Duplicate ${field} — student already exists.`);
+        } else if (error instanceof z.ZodError) {
           errors.push({
             row: rowNum,
             error: error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),

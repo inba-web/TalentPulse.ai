@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '../utils/apiFetch';
 
 interface Candidate {
   studentId: string;
@@ -29,7 +30,7 @@ export const useRecruiterStore = create<RecruiterState>((set) => ({
   fetchCandidatesForJob: async (jobId) => {
     set({ loading: true, error: null, candidates: [] });
     try {
-      const response = await fetch(`/api/ats/jobs/${jobId}/candidates`);
+      const response = await apiFetch(`/api/ats/jobs/${jobId}/candidates`);
       const result = await response.json();
       
       if (result.success) {
@@ -55,7 +56,7 @@ export const useRecruiterStore = create<RecruiterState>((set) => ({
         formData.append('file', file);
       }
 
-      const response = await fetch('/api/ats/resume/analyze', {
+      const response = await apiFetch('/api/ats/resume/analyze', {
         method: 'POST',
         body: formData,
       });
@@ -79,7 +80,7 @@ export const useRecruiterStore = create<RecruiterState>((set) => ({
         formData.append('file', file);
       }
 
-      const response = await fetch('/api/ats/jd/analyze', {
+      const response = await apiFetch('/api/ats/jd/analyze', {
         method: 'POST',
         body: formData,
       });

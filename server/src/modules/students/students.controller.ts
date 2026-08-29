@@ -15,6 +15,7 @@ export class StudentController {
     const placementStatus = req.query.placementStatus as PlacementStatus;
     const gender = req.query.gender as string;
     const hostelStatus = req.query.hostelStatus as string;
+    const includeDeleted = req.query.includeDeleted === 'true';
     
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -27,6 +28,7 @@ export class StudentController {
       hostelStatus,
       page,
       limit,
+      includeDeleted,
     });
 
     res.status(200).json({
@@ -158,6 +160,31 @@ export class StudentController {
     res.status(200).json({
       success: true,
       message: 'Placement eligibility has been successfully reinstated.',
+    });
+  });
+
+  public static recoverStudent = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      throw new AppError('Authentication mismatch.', 401, 'UNAUTHORIZED');
+    }
+
+    await StudentService.recoverStudent(id);
+
+    await AuditService.log({
+      action: 'STUDENT_RECOVERED',
+      actorId: adminId,
+      entity: 'Student',
+      entityId: id,
+      ipAddress: req.ip,
+      requestId: req.requestId,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Student record has been successfully recovered.',
     });
   });
 

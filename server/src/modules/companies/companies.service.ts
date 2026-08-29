@@ -117,9 +117,46 @@ export class CompanyService {
     });
   }
 
-  public static async deleteCompany(id: string) {
-    const company = await prisma.company.findUnique({ where: { id } });
+  public static async deleteCompany(id: string, note?: string) {
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { jobs: true, placements: true } },
+      },
+    });
     if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
-    return prisma.company.delete({ where: { id } });
+
+    return prisma.$transaction(async (tx) => {
+      // 1. Archive the company snapshot
+      await (tx as any).companyArchive.create({
+        data: {
+          id: `arc-${id}-${Date.now()}`,
+          originalId: company.id,
+          name: company.name,
+          website: company.website,
+          employeeSize: company.employeeSize,
+          industry: company.industry,
+          exactAddress: company.exactAddress,
+          latitude: company.latitude,
+          longitude: company.longitude,
+          placeId: company.placeId,
+          mapsUrl: company.mapsUrl,
+          contactPerson: company.contactPerson,
+          designation: company.designation,
+          contactEmail: company.contactEmail,
+          contactMobile: company.contactMobile,
+          status: company.status,
+          jobCount: (company as any)._count.jobs,
+          placementCount: (company as any)._count.placements,
+          deletedByNote: note ?? null,
+        },
+      });
+
+      // 2. Delete jobs for this company first (FK constraint)
+      await tx.job.deleteMany({ where: { companyId: id } });
+
+      // 3. Delete the company record
+      await tx.company.delete({ where: { id } });
+    });
   }
 }

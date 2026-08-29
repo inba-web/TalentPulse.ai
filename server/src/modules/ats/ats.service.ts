@@ -207,21 +207,25 @@ export class AtsService {
       throw new AppError('Job description text or PDF is required.', 400, 'BAD_REQUEST');
     }
 
-    // Parse experience and skills from JD
+    // Use Gemini AI to properly extract structured JD requirements
+    const jdDetails = await GeminiProvider.extractJobDetails(finalJdText);
+
+    // Parse experience years from the experience string (e.g. "2-4 years" → 2)
     let experienceYearsRequired = 0;
-    const expMatch = finalJdText.match(/(\d+)\s*(?:-|to)?\s*(?:\d+)?\s*(?:years|yr|yrs)/i) || finalJdText.match(/(\d+)\+\s*years/i);
+    const expMatch = jdDetails.experience.match(/(\d+)/);
     if (expMatch) {
       experienceYearsRequired = parseInt(expMatch[1]);
     }
 
-    // Basic skill extraction helper or fallback
-    const requiredSkills = finalJdText.toLowerCase().includes('skills') ? finalJdText.split('\n')[1].split(',') : ['react', 'node', 'sql'];
-
     const jdSpec: JdRequirementSpec = {
-      requiredSkills,
+      requiredSkills: jdDetails.requiredSkills.length > 0
+        ? jdDetails.requiredSkills
+        : jdDetails.technologies,
       experienceYearsRequired,
-      educationRequirement: 'B.Tech',
-      keywords: finalJdText.toLowerCase().split(/\s+/).slice(0, 30),
+      educationRequirement: jdDetails.education || 'B.Tech',
+      keywords: jdDetails.keywords.length > 0
+        ? jdDetails.keywords
+        : finalJdText.toLowerCase().split(/\s+/).filter(w => w.length > 4).slice(0, 40),
     };
 
     // Get all eligible students

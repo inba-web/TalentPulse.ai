@@ -4,30 +4,92 @@ import { prisma } from './config/db';
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  logger.info(`TalentPulse.ai Server successfully running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-});
+/**
+ * Apply any pending schema changes that cannot be run via prisma migrate
+ * in the current environment (e.g., Neon pooler restrictions).
+ * All statements are idempotent — safe to run on every startup.
+ */
+async function runSchemaMigrations() {
+  try {
+    // Add soft-delete fields to Student if not present
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT false;
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+    `);
+    // Create index on isDeleted if not exists
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "Student_isDeleted_idx" ON "Student"("isDeleted");
+    `);
 
-// Graceful shutdown controls
-const shutdown = async (signal: string) => {
-  logger.info(`Received ${signal}. Shutting down server gracefully...`);
-  
-  server.close(async () => {
-    logger.info('HTTP server closed.');
-    await prisma.$disconnect();
-    logger.info('Database connections closed.');
-    process.exit(0);
+    // Create CompanyArchive table if not exists
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "CompanyArchive" (
+        "id"             TEXT NOT NULL,
+        "originalId"     TEXT NOT NULL,
+        "name"           TEXT NOT NULL,
+        "website"        TEXT,
+        "employeeSize"   INTEGER,
+        "industry"       TEXT,
+        "exactAddress"   TEXT,
+        "latitude"       DOUBLE PRECISION,
+        "longitude"      DOUBLE PRECISION,
+        "placeId"        TEXT,
+        "mapsUrl"        TEXT,
+        "contactPerson"  TEXT NOT NULL,
+        "designation"    TEXT NOT NULL,
+        "contactEmail"   TEXT NOT NULL,
+        "contactMobile"  TEXT NOT NULL,
+        "status"         TEXT NOT NULL,
+        "jobCount"       INTEGER NOT NULL DEFAULT 0,
+        "placementCount" INTEGER NOT NULL DEFAULT 0,
+        "deletedAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "deletedByNote"  TEXT,
+        CONSTRAINT "CompanyArchive_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "CompanyArchive_originalId_idx" ON "CompanyArchive"("originalId");
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "CompanyArchive_deletedAt_idx" ON "CompanyArchive"("deletedAt");
+    `);
+
+    logger.info('Schema auto-migration completed successfully.');
+  } catch (err: any) {
+    logger.warn({ err: err.message }, 'Schema auto-migration warning (non-fatal).');
+  }
+}
+
+// Run migrations then start server
+(async () => {
+  await runSchemaMigrations();
+  const server = app.listen(PORT, () => {
+    logger.info(`TalentPulse.ai Server successfully running on port ${PORT} in ${process.env.NODE_ENV} mode`);
   });
 
-  // Force exit after 10 seconds
-  setTimeout(() => {
-    logger.error('Could not close connections in time, forcefully shutting down.');
-    process.exit(1);
-  }, 10000);
-};
+  // Graceful shutdown controls
+  const shutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Shutting down server gracefully...`);
+    
+    server.close(async () => {
+      logger.info('HTTP server closed.');
+      await prisma.$disconnect();
+      logger.info('Database connections closed.');
+      process.exit(0);
+    });
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      logger.error('Could not close connections in time, forcefully shutting down.');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+})();
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error({ promise, reason }, 'Unhandled Rejection at Promise');

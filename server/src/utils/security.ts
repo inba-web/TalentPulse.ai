@@ -33,16 +33,36 @@ const isPrivateIP = (ipAddress: string): boolean => {
 };
 
 /**
+ * Convert a Google Drive share/view URL to a direct download URL.
+ * Handles all common Drive URL formats.
+ */
+function convertDriveUrl(fileUrl: string): string {
+  // Extract file ID from various Drive URL patterns
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,     // /file/d/ID/view
+    /[?&]id=([a-zA-Z0-9_-]+)/,          // ?id=ID
+    /\/document\/d\/([a-zA-Z0-9_-]+)/,  // Google Docs
+    /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/, // Sheets
+  ];
+
+  for (const pattern of patterns) {
+    const match = fileUrl.match(pattern);
+    if (match && match[1]) {
+      const fileId = match[1];
+      // Use export=download with confirm=t to bypass large-file warning page
+      return `https://drive.google.com/uc?export=download&confirm=t&id=${fileId}`;
+    }
+  }
+  return fileUrl; // Not a Drive URL, return as-is
+}
+
+/**
  * Downloads file from url securely by checking for SSRF, DNS rebinding, and restricting file size and redirections.
  */
 export async function secureDownload(fileUrl: string): Promise<{ data: Buffer; contentType: string }> {
   try {
-    let finalUrl = fileUrl;
-    // Extract file ID from google drive links and rewrite to direct download UC link
-    const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/id=([a-zA-Z0-9_-]+)/) || fileUrl.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch && fileIdMatch[1]) {
-      finalUrl = `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
-    }
+    const finalUrl = convertDriveUrl(fileUrl);
+
     const parsedUrl = new URL(finalUrl);
     
     // Enforce HTTPS
@@ -65,17 +85,27 @@ export async function secureDownload(fileUrl: string): Promise<{ data: Buffer; c
       }
     }
 
-    // Request settings
+    // Request settings — generous timeout and redirect budget for Google Drive's multi-redirect flow
     const response = await axios({
       method: 'get',
       url: finalUrl,
-      timeout: 5000, // 5s timeout
-      maxContentLength: 10 * 1024 * 1024, // Max 10MB
-      maxRedirects: 2, // Strict redirect limit
+      timeout: 15000,          // 15s for Drive (may be slow)
+      maxContentLength: 15 * 1024 * 1024, // 15MB
+      maxRedirects: 6,          // Drive does several redirects
       responseType: 'arraybuffer',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TalentPulse-ATS/1.0)',
+        'Accept': 'application/pdf,*/*',
+      },
     });
 
     const contentType = String(response.headers['content-type'] || 'application/octet-stream');
+
+    // If Drive returned an HTML confirmation page instead of the file, throw so caller can use fallback
+    if (contentType.includes('text/html')) {
+      throw new AppError('Google Drive returned an HTML page instead of the file. File may require special access.', 400, 'DOWNLOAD_FAILED');
+    }
+
     return {
       data: Buffer.from(response.data),
       contentType,

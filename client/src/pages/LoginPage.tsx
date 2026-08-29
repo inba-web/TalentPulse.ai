@@ -107,14 +107,14 @@ export default function LoginPage() {
       {/* Solid Enterprise Login Form Wrapper */}
       <div className="relative w-full max-w-md bg-surface-1 border border-border-primary rounded p-8 z-20 overflow-hidden flex flex-col items-center shadow-lg">
         
-        {/* Brand header */}
-        <div className="flex flex-col items-center gap-3.5 mb-8">
-          <div className="p-3 bg-gradient-primary rounded glow-primary border border-border-primary/20">
-            <img src="/assets/talentpulse_logo.png" className="w-12 h-12 object-contain" alt="Logo" />
+        {/* Brand header — large prominent logo */}
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <div className="p-4 bg-gradient-primary rounded-2xl glow-primary border border-primary/30 shadow-lg">
+            <img src="/assets/talentpulse_logo.png" className="w-16 h-16 object-contain" alt="TalentPulse Logo" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-extrabold text-text-primary tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>
-            <p className="text-[10px] text-text-muted font-bold mt-1.5 uppercase tracking-widest">Talent & Recruitment Platform</p>
+            <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>
+            <p className="text-[11px] text-text-muted font-bold mt-2 uppercase tracking-widest">Authorized Talent &amp; Placement Portal</p>
           </div>
         </div>
 
@@ -179,34 +179,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Credentials Info Helper Box */}
-        <div className="w-full mt-6 p-4 rounded border border-primary/20 bg-primary/5 text-[11px] space-y-2 text-text-secondary">
-          <div className="font-bold text-primary uppercase tracking-wider text-[10px]">Demo User Credentials (RBAC) · Click to auto-fill</div>
-          <div className="space-y-1.5 border-t border-border-primary pt-2">
-            {[
-              { label: 'Admin User', email: 'admin@talentpulse.ai' },
-              { label: 'Manager', email: 'manager@talentpulse.ai' },
-              { label: 'Lead User', email: 'lead@talentpulse.ai' },
-            ].map(({ label, email: demoEmail }) => (
-              <button
-                key={demoEmail}
-                type="button"
-                onClick={() => fillCredentials(demoEmail)}
-                className="w-full flex justify-between items-center px-2.5 py-1.5 rounded hover:bg-primary/10 transition cursor-pointer group border-0 bg-transparent"
-              >
-                <span className="font-sans font-semibold text-text-muted group-hover:text-text-secondary">{label}:</span>
-                <span className="font-mono text-xs text-text-secondary group-hover:text-primary transition">{demoEmail}</span>
-              </button>
-            ))}
-            <div className="flex justify-between items-center px-2.5 py-1 border-t border-border-primary/50 mt-1">
-              <span className="font-sans font-semibold text-text-muted">Password:</span>
-              <span className="text-primary font-bold font-mono">Password123!</span>
-            </div>
-          </div>
-        </div>
-        
         {/* Footer info */}
-        <div className="mt-6 text-center text-[10px] text-text-disabled font-semibold uppercase tracking-wider">
+        <div className="mt-8 text-center text-[10px] text-text-disabled font-semibold uppercase tracking-wider">
           Authorized Academic Portal &bull; TalentPulse.ai
         </div>
       </div>

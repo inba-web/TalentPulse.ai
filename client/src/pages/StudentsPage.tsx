@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useStudentStore } from '../store/studentStore';
 import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Plus, Upload, Loader2, FileSpreadsheet, X, Check, AlertCircle, Edit2, Trash2, XOctagon, CheckCircle, Eye, AlertTriangle, RefreshCw } from 'lucide-react';
+import {
+  Search, Upload, Loader2, FileSpreadsheet, X, AlertCircle,
+  Edit2, Trash2, XOctagon, CheckCircle, Eye, RefreshCw, RotateCcw, Users, UserX, Undo2,
+} from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ConfirmDialog from '../components/ConfirmDialog';
+
+type TabType = 'ALL' | 'TERMINATED' | 'DELETED';
 
 export default function StudentsPage() {
   const navigate = useNavigate();
@@ -15,14 +21,17 @@ export default function StudentsPage() {
     error,
     fetchStudents,
     importStudents,
-    createStudent,
     updateStudent,
     deleteStudent,
+    recoverStudent,
     terminateStudent,
     revokeTermination,
   } = useStudentStore();
   const { hasPermission, user: authUser } = useAuthStore();
   const isAdmin = authUser?.roleName === 'ADMIN';
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>('ALL');
 
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
@@ -32,12 +41,29 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
+  const buildFilters = (tab: TabType) => {
+    const base = {
+      search,
+      departmentId: dept,
+      gender,
+      hostelStatus,
+      page,
+      limit: 10,
+    };
+    if (tab === 'ALL') {
+      return { ...base, placementStatus: status, includeDeleted: false };
+    }
+    if (tab === 'TERMINATED') {
+      return { ...base, placementStatus: 'TERMINATED', includeDeleted: false };
+    }
+    // DELETED
+    return { ...base, includeDeleted: true };
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
-    } catch (err) {
-      console.error(err);
+      await fetchStudents(buildFilters(activeTab));
     } finally {
       setRefreshing(false);
     }
@@ -49,7 +75,7 @@ export default function StudentsPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
 
-  // Edit dialog state
+  // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editFullName, setEditFullName] = useState('');
@@ -69,26 +95,29 @@ export default function StudentsPage() {
   const [editPortfolio, setEditPortfolio] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
-  // Delete dialog state
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Terminate dialog state
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [terminatingStudentId, setTerminatingStudentId] = useState<string | null>(null);
   const [terminateReason, setTerminateReason] = useState('');
   const [terminateLoading, setTerminateLoading] = useState(false);
 
-  // Revoke dialog state
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokingStudentId, setRevokingStudentId] = useState<string | null>(null);
   const [revokeLoading, setRevokeLoading] = useState(false);
 
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoveringStudentId, setRecoveringStudentId] = useState<string | null>(null);
+  const [recoverLoading, setRecoverLoading] = useState(false);
+
+  const [depts, setDepts] = useState<any[]>([]);
+
   const handleOpenEdit = (student: any) => {
     setEditingStudent(student);
     setEditFullName(student.fullName);
-    setEditDeptId(student.departmentId);
+    setEditDeptId(student.departmentId || '');
     setEditGender(student.gender);
     setEditHostelStatus(student.hostelStatus);
     setEditPersonalEmail(student.personalEmail);
@@ -128,7 +157,7 @@ export default function StudentsPage() {
         portfolioUrl: editPortfolio || null,
       });
       setEditOpen(false);
-      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+      fetchStudents(buildFilters(activeTab));
     } catch (err: any) {
       alert(err.message || 'Update failed');
     } finally {
@@ -143,7 +172,7 @@ export default function StudentsPage() {
       await deleteStudent(deletingStudentId);
       setDeleteOpen(false);
       setDeletingStudentId(null);
-      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+      // Refresh — deleteStudent already calls refreshStudents in the store
     } catch (err: any) {
       alert(err.message || 'Deletion failed');
     } finally {
@@ -159,7 +188,7 @@ export default function StudentsPage() {
       setTerminateOpen(false);
       setTerminatingStudentId(null);
       setTerminateReason('');
-      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+      fetchStudents(buildFilters(activeTab));
     } catch (err: any) {
       alert(err.message || 'Termination failed');
     } finally {
@@ -174,7 +203,7 @@ export default function StudentsPage() {
       await revokeTermination(revokingStudentId);
       setRevokeOpen(false);
       setRevokingStudentId(null);
-      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+      fetchStudents(buildFilters(activeTab));
     } catch (err: any) {
       alert(err.message || 'Revocation failed');
     } finally {
@@ -182,16 +211,27 @@ export default function StudentsPage() {
     }
   };
 
-  const [depts, setDepts] = useState<any[]>([]);
+  const handleRecoverConfirm = async () => {
+    if (!recoveringStudentId) return;
+    setRecoverLoading(true);
+    try {
+      await recoverStudent(recoveringStudentId);
+      setRecoverOpen(false);
+      setRecoveringStudentId(null);
+      // recoverStudent in store calls refreshStudents
+    } catch (err: any) {
+      alert(err.message || 'Recovery failed');
+    } finally {
+      setRecoverLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadDepts = async () => {
       try {
-        const res = await fetch('/api/students/departments');
+        const res = await apiFetch('/api/students/departments');
         const result = await res.json();
-        if (result.success) {
-          setDepts(result.data);
-        }
+        if (result.success) setDepts(result.data);
       } catch (err) {
         console.error('Failed to load departments:', err);
       }
@@ -200,28 +240,25 @@ export default function StudentsPage() {
   }, []);
 
   useEffect(() => {
-    fetchStudents({
-      search,
-      departmentId: dept,
-      placementStatus: status,
-      gender,
-      hostelStatus,
-      page,
-      limit: 10,
-    });
-  }, [search, dept, status, gender, hostelStatus, page]);
+    fetchStudents(buildFilters(activeTab));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, dept, status, gender, hostelStatus, page, activeTab]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setPage(1);
+    setStatus('');
+  };
 
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importFile) return;
-
     setImportLoading(true);
     setImportResult(null);
-
     try {
       const result = await importStudents(importFile);
       setImportResult(result);
-      fetchStudents({ page: 1 });
+      // importStudents in store already re-fetches list — no need to call again
     } catch (err) {
       console.error(err);
     } finally {
@@ -263,9 +300,30 @@ export default function StudentsPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-border-primary">
+        {([
+          { key: 'ALL', label: 'All Students', icon: Users },
+          { key: 'TERMINATED', label: 'Terminated', icon: UserX },
+          { key: 'DELETED', label: 'Deleted Records', icon: Trash2 },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => handleTabChange(key)}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition cursor-pointer ${
+              activeTab === key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="bg-surface-1 p-4 rounded border border-border-primary flex flex-col md:flex-row gap-4 items-center justify-between">
-
         {/* Search */}
         <div className="relative w-full md:max-w-xs">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-text-muted">
@@ -289,42 +347,33 @@ export default function StudentsPage() {
           <select
             className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={dept}
-            onChange={(e) => {
-              setDept(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setDept(e.target.value); setPage(1); }}
           >
             <option value="">All Departments</option>
             {depts.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
+              <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
 
-          {/* Status */}
-          <select
-            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All Statuses</option>
-            <option value="YET_TO_BE_PLACED">Yet To Be Placed</option>
-            <option value="PLACED">Placed</option>
-            <option value="TERMINATED">Terminated</option>
-          </select>
+          {/* Status (only for ALL tab) */}
+          {activeTab === 'ALL' && (
+            <select
+              className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            >
+              <option value="">All Statuses</option>
+              <option value="YET_TO_BE_PLACED">Yet To Be Placed</option>
+              <option value="PLACED">Placed</option>
+              <option value="TERMINATED">Terminated</option>
+            </select>
+          )}
 
           {/* Gender */}
           <select
             className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={gender}
-            onChange={(e) => {
-              setGender(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setGender(e.target.value); setPage(1); }}
           >
             <option value="">All Genders</option>
             <option value="MALE">Male</option>
@@ -336,10 +385,7 @@ export default function StudentsPage() {
           <select
             className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={hostelStatus}
-            onChange={(e) => {
-              setHostelStatus(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setHostelStatus(e.target.value); setPage(1); }}
           >
             <option value="">All Residencies</option>
             <option value="HOSTEL">Hostel</option>
@@ -347,6 +393,14 @@ export default function StudentsPage() {
           </select>
         </div>
       </div>
+
+      {/* Deleted tab warning */}
+      {activeTab === 'DELETED' && (
+        <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded px-4 py-3 text-xs text-warning font-semibold">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>These records have been soft-deleted. Use the <strong>Recover</strong> action to restore a student profile.</span>
+        </div>
+      )}
 
       {/* Students Data Table */}
       <div className="bg-surface-1 rounded border border-border-primary overflow-hidden">
@@ -361,7 +415,8 @@ export default function StudentsPage() {
                 <th className="px-6 py-4 text-center">SSLC %</th>
                 <th className="px-6 py-4 text-center">HSC %</th>
                 <th className="px-6 py-4 text-center">UG %</th>
-                <th className="px-6 py-4 text-center">Status</th>
+                {activeTab !== 'DELETED' && <th className="px-6 py-4 text-center">Status</th>}
+                {activeTab === 'DELETED' && <th className="px-6 py-4 text-center">Deleted On</th>}
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -376,7 +431,11 @@ export default function StudentsPage() {
               ) : students.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-text-muted font-medium">
-                    No matching student records found.
+                    {activeTab === 'DELETED'
+                      ? 'No deleted records found.'
+                      : activeTab === 'TERMINATED'
+                      ? 'No terminated students found.'
+                      : 'No matching student records found.'}
                   </td>
                 </tr>
               ) : (
@@ -384,28 +443,55 @@ export default function StudentsPage() {
                   <tr
                     key={student.id}
                     className="hover:bg-surface-2/40 cursor-pointer transition duration-150"
-                    onClick={() => navigate(`/students/${student.id}`)}
+                    onClick={() => activeTab !== 'DELETED' && navigate(`/students/${student.id}`)}
                   >
                     <td className="px-6 py-4 font-mono font-semibold text-xs text-text-primary">{student.rollNumber}</td>
                     <td className="px-6 py-4 font-semibold text-text-primary">{student.fullName}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department.name}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department?.name}</td>
                     <td className="px-6 py-4 text-xs font-medium">{student.gender}</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.hscPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage}%</td>
-                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      <StatusBadge status={student.placementStatus} />
-                    </td>
+                    {activeTab !== 'DELETED' && (
+                      <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <StatusBadge status={student.placementStatus} />
+                      </td>
+                    )}
+                    {activeTab === 'DELETED' && (
+                      <td className="px-6 py-4 text-center text-xs text-text-muted">
+                        {student.deletedAt ? new Date(student.deletedAt).toLocaleDateString() : '—'}
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2 justify-end items-center">
-                        <Link
-                          to={`/students/${student.id}`}
-                          className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded hover:text-primary transition"
-                          title="View Profile"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </Link>
-                        {isAdmin && (
+                        {/* View — not for deleted */}
+                        {activeTab !== 'DELETED' && (
+                          <Link
+                            to={`/students/${student.id}`}
+                            className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded hover:text-primary transition"
+                            title="View Profile"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
+
+                        {/* DELETED tab — recover button */}
+                        {activeTab === 'DELETED' && isAdmin && (
+                          <button
+                            onClick={() => {
+                              setRecoveringStudentId(student.id);
+                              setRecoverOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-primary text-xs font-bold transition cursor-pointer"
+                            title="Recover Student"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            Recover
+                          </button>
+                        )}
+
+                        {/* ALL tab admin actions */}
+                        {activeTab !== 'DELETED' && isAdmin && (
                           <>
                             <button
                               onClick={() => handleOpenEdit(student)}
@@ -414,6 +500,7 @@ export default function StudentsPage() {
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
+
                             {student.placementStatus !== 'TERMINATED' ? (
                               <button
                                 onClick={() => {
@@ -438,13 +525,14 @@ export default function StudentsPage() {
                                 <CheckCircle className="w-3.5 h-3.5" />
                               </button>
                             )}
+
                             <button
                               onClick={() => {
                                 setDeletingStudentId(student.id);
                                 setDeleteOpen(true);
                               }}
                               className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-error hover:bg-error/10 transition cursor-pointer"
-                              title="Delete Student"
+                              title="Soft-Delete Student"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -459,7 +547,7 @@ export default function StudentsPage() {
           </table>
         </div>
 
-        {/* Pagination controls */}
+        {/* Pagination */}
         {total > 10 && (
           <div className="px-6 py-4 border-t border-border-primary bg-background-tertiary flex justify-between items-center text-xs">
             <span className="text-text-muted font-medium">
@@ -485,12 +573,10 @@ export default function StudentsPage() {
         )}
       </div>
 
-      {/* Spreadsheet Import Modal/Slide-out */}
+      {/* ── IMPORT MODAL ── */}
       {importOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-background/80 flex justify-center items-center">
           <div className="bg-surface-1 max-w-xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-
-            {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary bg-surface-2">
               <h3 className="font-extrabold text-text-primary flex items-center gap-2 text-sm">
                 <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -501,7 +587,6 @@ export default function StudentsPage() {
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-6">
               {!importResult ? (
                 <form onSubmit={handleImportSubmit} className="space-y-4">
@@ -535,16 +620,15 @@ export default function StudentsPage() {
                       {importLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Uploading...</span>
+                          <span>Uploading & Processing...</span>
                         </>
                       ) : (
-                        <span>Verify & Import</span>
+                        <span>Verify &amp; Import</span>
                       )}
                     </button>
                   </div>
                 </form>
               ) : (
-                /* Import Results breakdown */
                 <div className="space-y-6">
                   <div className="grid grid-cols-4 gap-4 text-center">
                     <div className="bg-background-secondary p-3 rounded border border-border-primary">
@@ -556,17 +640,23 @@ export default function StudentsPage() {
                       <div className="text-[10px] font-bold text-success uppercase mt-0.5">Success</div>
                     </div>
                     <div className="bg-warning/10 p-3 rounded border border-warning/20">
-                      <div className="text-lg font-extrabold text-warning">{importResult.duplicates.length}</div>
+                      <div className="text-lg font-extrabold text-warning">{importResult.duplicates?.length ?? 0}</div>
                       <div className="text-[10px] font-bold text-warning uppercase mt-0.5">Duplicates</div>
                     </div>
                     <div className="bg-danger/10 p-3 rounded border border-danger/20">
-                      <div className="text-lg font-extrabold text-danger">{importResult.errors.length}</div>
+                      <div className="text-lg font-extrabold text-danger">{importResult.errors?.length ?? 0}</div>
                       <div className="text-[10px] font-bold text-danger uppercase mt-0.5">Errors</div>
                     </div>
                   </div>
 
-                  {/* Errors Detail list */}
-                  {importResult.errors.length > 0 && (
+                  {importResult.successCount > 0 && (
+                    <div className="flex items-center gap-2 bg-success/10 border border-success/20 rounded px-4 py-2.5 text-xs text-success font-semibold">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>{importResult.successCount} student(s) imported — the list below has been updated.</span>
+                    </div>
+                  )}
+
+                  {importResult.errors?.length > 0 && (
                     <div className="border border-danger/20 rounded overflow-hidden max-h-48 overflow-y-auto">
                       <div className="bg-danger/10 px-4 py-2 border-b border-danger/20 text-xs font-bold text-danger flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
@@ -590,7 +680,7 @@ export default function StudentsPage() {
                       onClick={() => setImportOpen(false)}
                       className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded hover:bg-primary/90 transition cursor-pointer"
                     >
-                      Complete
+                      Done
                     </button>
                   </div>
                 </div>
@@ -599,14 +689,13 @@ export default function StudentsPage() {
           </div>
         </div>
       )}
-      {/* Edit Student Modal */}
+
+      {/* ── EDIT MODAL ── */}
       {editOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-black/60 backdrop-blur-sm flex justify-center items-center animate-in fade-in duration-200">
           <div className="bg-surface-1 max-w-2xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in zoom-in duration-200">
             <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary bg-surface-2">
-              <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider">
-                Edit Candidate Details
-              </h3>
+              <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider">Edit Candidate Details</h3>
               <button
                 onClick={() => setEditOpen(false)}
                 className="p-1 hover:bg-surface-elevated rounded text-text-secondary hover:text-text-primary transition cursor-pointer"
@@ -614,7 +703,7 @@ export default function StudentsPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               <div className="border-b border-border-primary pb-2 mb-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">Personal Info</span>
@@ -622,41 +711,20 @@ export default function StudentsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editFullName}
-                    onChange={(e) => setEditFullName(e.target.value)}
-                  />
+                  <input type="text" required className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Department</label>
-                  <select
-                    required
-                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
-                    value={editDeptId}
-                    onChange={(e) => setEditDeptId(e.target.value)}
-                  >
+                  <select required className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition" value={editDeptId} onChange={(e) => setEditDeptId(e.target.value)}>
                     <option value="">Select Department</option>
-                    {depts.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
+                    {depts.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
                   </select>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Gender</label>
-                  <select
-                    required
-                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
-                    value={editGender}
-                    onChange={(e) => setEditGender(e.target.value)}
-                  >
+                  <select required className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition" value={editGender} onChange={(e) => setEditGender(e.target.value)}>
                     <option value="MALE">Male</option>
                     <option value="FEMALE">Female</option>
                     <option value="OTHER">Other</option>
@@ -664,164 +732,81 @@ export default function StudentsPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Hostel Status</label>
-                  <select
-                    required
-                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
-                    value={editHostelStatus}
-                    onChange={(e) => setEditHostelStatus(e.target.value)}
-                  >
+                  <select required className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition" value={editHostelStatus} onChange={(e) => setEditHostelStatus(e.target.value)}>
                     <option value="HOSTEL">Hostel</option>
                     <option value="DAY_SCHOLAR">Day Scholar</option>
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Graduation Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editGraduationDate}
-                    onChange={(e) => setEditGraduationDate(e.target.value)}
-                  />
+                  <input type="date" required className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editGraduationDate} onChange={(e) => setEditGraduationDate(e.target.value)} />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Personal Email</label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editPersonalEmail}
-                    onChange={(e) => setEditPersonalEmail(e.target.value)}
-                  />
+                  <input type="email" required className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editPersonalEmail} onChange={(e) => setEditPersonalEmail(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">College Email</label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editCollegeEmail}
-                    onChange={(e) => setEditCollegeEmail(e.target.value)}
-                  />
+                  <input type="email" required className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editCollegeEmail} onChange={(e) => setEditCollegeEmail(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Mobile Number</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editMobileNumber}
-                    onChange={(e) => setEditMobileNumber(e.target.value)}
-                  />
+                  <input type="text" required className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editMobileNumber} onChange={(e) => setEditMobileNumber(e.target.value)} />
                 </div>
               </div>
-
               <div className="border-b border-border-primary pb-2 pt-2 mb-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">Academics (%)</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">SSLC (10th)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editSslc}
-                    onChange={(e) => setEditSslc(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">HSC (12th)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editHsc}
-                    onChange={(e) => setEditHsc(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">UG degree</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editUg}
-                    onChange={(e) => setEditUg(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">PG degree</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editPg}
-                    onChange={(e) => setEditPg(e.target.value)}
-                  />
-                </div>
+                {[
+                  { label: 'SSLC (10th)', val: editSslc, set: setEditSslc, required: true },
+                  { label: 'HSC (12th)', val: editHsc, set: setEditHsc, required: true },
+                  { label: 'UG Degree', val: editUg, set: setEditUg, required: true },
+                  { label: 'PG Degree', val: editPg, set: setEditPg, required: false },
+                ].map(({ label, val, set, required }) => (
+                  <div key={label} className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{label}</label>
+                    <input type="number" step="0.01" required={required} className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={val} onChange={(e) => set(e.target.value)} />
+                  </div>
+                ))}
               </div>
-
               <div className="border-b border-border-primary pb-2 pt-2 mb-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">Social Links</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">GitHub URL</label>
-                  <input
-                    type="url"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editGithub}
-                    onChange={(e) => setEditGithub(e.target.value)}
-                  />
+                  <input type="url" className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editGithub} onChange={(e) => setEditGithub(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">LinkedIn URL</label>
-                  <input
-                    type="url"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editLinkedin}
-                    onChange={(e) => setEditLinkedin(e.target.value)}
-                  />
+                  <input type="url" className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editLinkedin} onChange={(e) => setEditLinkedin(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Portfolio URL</label>
-                  <input
-                    type="url"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={editPortfolio}
-                    onChange={(e) => setEditPortfolio(e.target.value)}
-                  />
+                  <input type="url" className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editPortfolio} onChange={(e) => setEditPortfolio(e.target.value)} />
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={editLoading}
-                className="w-full h-10 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs rounded transition flex items-center justify-center gap-2 glow-primary border-0 cursor-pointer"
+                className="w-full h-10 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs rounded transition flex items-center justify-center gap-2 border-0 cursor-pointer"
               >
-                {editLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>Save Candidate Changes</span>
-                )}
+                {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Save Candidate Changes</span>}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation */}
+      {/* ── DIALOGS ── */}
       <ConfirmDialog
         isOpen={deleteOpen}
-        title="Delete Candidate Record"
-        message="Are you sure you want to permanently delete this candidate's profile? This operation is irreversible and will delete all their records, resumes, and ATS scores."
+        title="Move Candidate to Deleted"
+        message="This will soft-delete the student record. The record will move to the 'Deleted Records' tab and can be recovered later by an admin."
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteOpen(false)}
         confirmText="Delete Record"
@@ -829,11 +814,21 @@ export default function StudentsPage() {
         loading={deleteLoading}
       />
 
-      {/* Terminate Confirmation */}
+      <ConfirmDialog
+        isOpen={recoverOpen}
+        title="Recover Deleted Student"
+        message="This will restore the student record to the active directory. They will appear on the Candidates list again."
+        onConfirm={handleRecoverConfirm}
+        onCancel={() => setRecoverOpen(false)}
+        confirmText="Recover Student"
+        type="info"
+        loading={recoverLoading}
+      />
+
       <ConfirmDialog
         isOpen={terminateOpen}
         title="Terminate Student Placement Eligibility"
-        message="Are you sure you want to terminate this student from participating in placement drives? The student will be set as ineligible, and recruiters will be blocked from matching their resume."
+        message="Are you sure you want to terminate this student from participating in placement drives? The student will be set as ineligible."
         onConfirm={handleTerminateConfirm}
         onCancel={() => setTerminateOpen(false)}
         confirmText="Terminate Eligibility"
@@ -851,11 +846,10 @@ export default function StudentsPage() {
         </div>
       </ConfirmDialog>
 
-      {/* Revoke Confirmation */}
       <ConfirmDialog
         isOpen={revokeOpen}
         title="Revoke Placement Termination"
-        message="Are you sure you want to revoke this student's placement termination and reinstate their eligibility status? Reinstated students will be visible on recruiter matching boards."
+        message="Are you sure you want to revoke this student's placement termination and reinstate their eligibility status?"
         onConfirm={handleRevokeConfirm}
         onCancel={() => setRevokeOpen(false)}
         confirmText="Revoke & Reinstate"

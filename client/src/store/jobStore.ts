@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '../utils/apiFetch';
 
 interface Job {
   id: string;
@@ -56,7 +57,7 @@ export const useJobStore = create<JobState>((set) => ({
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 
-      const response = await fetch(`/api/jobs?${params.toString()}`);
+      const response = await apiFetch(`/api/jobs?${params.toString()}`);
       const result = await response.json();
       
       if (result.success) {
@@ -76,7 +77,7 @@ export const useJobStore = create<JobState>((set) => ({
   fetchJobById: async (id) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/jobs/${id}`);
+      const response = await apiFetch(`/api/jobs/${id}`);
       const result = await response.json();
       set({ loading: false });
       if (result.success) return result.data.job;
@@ -90,7 +91,7 @@ export const useJobStore = create<JobState>((set) => ({
   createJob: async (data) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/jobs', {
+      const response = await apiFetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -107,7 +108,7 @@ export const useJobStore = create<JobState>((set) => ({
   updateJob: async (id, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/jobs/${id}`, {
+      const response = await apiFetch(`/api/jobs/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -124,7 +125,7 @@ export const useJobStore = create<JobState>((set) => ({
   forwardJob: async (id) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/jobs/${id}/forward`, { method: 'POST' });
+      const response = await apiFetch(`/api/jobs/${id}/forward`, { method: 'POST' });
       const result = await response.json();
       set({ loading: false });
       if (!result.success) throw new Error(result.error?.message || 'Failed to forward opportunity');
@@ -137,7 +138,7 @@ export const useJobStore = create<JobState>((set) => ({
   reviewJob: async (id, approve, comment) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/jobs/${id}/review`, {
+      const response = await apiFetch(`/api/jobs/${id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approve, comment }),
@@ -156,7 +157,7 @@ export const useJobStore = create<JobState>((set) => ({
     try {
       let response;
       if (typeof fileOrText === 'string') {
-        response = await fetch('/api/jobs/extract-jd', {
+        response = await apiFetch('/api/jobs/extract-jd', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: fileOrText }),
@@ -164,7 +165,7 @@ export const useJobStore = create<JobState>((set) => ({
       } else {
         const formData = new FormData();
         formData.append('file', fileOrText);
-        response = await fetch('/api/jobs/extract-jd', {
+        response = await apiFetch('/api/jobs/extract-jd', {
           method: 'POST',
           body: formData,
         });

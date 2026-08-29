@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useNavigate } from 'react-router-dom';
-import { Download, Loader2, Eye, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Download, Loader2, Eye, Edit2, Trash2, X, Check, RefreshCw } from 'lucide-react';
 import { useStudentStore } from '../store/studentStore';
 
 export default function ReportsPage() {
@@ -24,11 +25,23 @@ export default function ReportsPage() {
   const [editEmail, setEditEmail] = useState('');
   
   const [actionLoading, setActionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchReport();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/reports/placements');
+      const response = await apiFetch('/api/reports/placements');
       const result = await response.json();
       if (result.success) {
         setData(result.data);
@@ -128,7 +141,7 @@ export default function ReportsPage() {
     try {
       if (activeTab === 'placed') {
         // Update placement record
-        const response = await fetch(`/api/reports/placements/${editingRecord.id}`, {
+        const response = await apiFetch(`/api/reports/placements/${editingRecord.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ctc: Number(editCtc), date: editDate }),
@@ -162,7 +175,7 @@ export default function ReportsPage() {
     try {
       if (activeTab === 'placed') {
         // Revoke placement offer
-        const response = await fetch(`/api/reports/placements/${record.id}`, {
+        const response = await apiFetch(`/api/reports/placements/${record.id}`, {
           method: 'DELETE',
         });
         const result = await response.json();
@@ -189,15 +202,25 @@ export default function ReportsPage() {
           <p className="text-xs text-text-muted mt-1">Analyze and export placement metrics and statistics.</p>
         </div>
 
-        {!loading && (
+        <div className="flex gap-3">
           <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary border-0 transition cursor-pointer"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border-primary hover:border-border-hover text-text-primary text-xs font-semibold rounded bg-surface-1 transition cursor-pointer"
           >
-            <Download className="w-4 h-4" />
-            <span>Export to Excel</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
-        )}
+          {!loading && (
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary border-0 transition cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export to Excel</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

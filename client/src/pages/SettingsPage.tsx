@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useAuthStore } from '../store/authStore';
 import { UserPlus, Shield, Mail, User, Key, Loader2, RefreshCw, Settings } from 'lucide-react';
 
@@ -55,7 +56,7 @@ export default function SettingsPage() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const response = await fetch('/api/auth/users');
+      const response = await apiFetch('/api/auth/users');
       const result = await response.json();
       if (result.success) {
         setUsers(result.data);
@@ -96,7 +97,7 @@ export default function SettingsPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/auth/create-user', {
+      const response = await apiFetch('/api/auth/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, fullName, roleName }),

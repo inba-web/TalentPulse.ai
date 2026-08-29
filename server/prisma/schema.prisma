@@ -149,6 +149,10 @@ model Student {
   graduationDate        DateTime
   placementStatus       PlacementStatus        @default(YET_TO_BE_PLACED)
 
+  // Soft delete
+  isDeleted             Boolean                @default(false)
+  deletedAt             DateTime?
+
   // Relationships
   academics             StudentAcademics?
   links                 StudentLinks?
@@ -166,6 +170,7 @@ model Student {
   @@index([collegeEmail])
   @@index([mobileNumber])
   @@index([departmentId])
+  @@index([isDeleted])
 }
 
 model StudentAcademics {
@@ -241,6 +246,33 @@ model Company {
 
   @@index([name])
   @@index([status])
+}
+
+// Snapshot of deleted company data for historical records
+model CompanyArchive {
+  id                    String                 @id @default(uuid())
+  originalId            String                 // Original company ID
+  name                  String
+  website               String?
+  employeeSize          Int?
+  industry              String?
+  exactAddress          String?
+  latitude              Float?
+  longitude             Float?
+  placeId               String?
+  mapsUrl               String?
+  contactPerson         String
+  designation           String
+  contactEmail          String
+  contactMobile         String
+  status                String                 // Stored as string after deletion
+  jobCount              Int                    @default(0)
+  placementCount        Int                    @default(0)
+  deletedAt             DateTime               @default(now())
+  deletedByNote         String?                // Optional reason/note
+
+  @@index([originalId])
+  @@index([deletedAt])
 }
 
 model Job {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useNavigate } from 'react-router-dom';
 import { Search, Loader2 } from 'lucide-react';
 
@@ -50,7 +51,7 @@ export default function CommandPalette() {
     const delayDebounce = setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const response = await apiFetch(`/api/search?q=${encodeURIComponent(query)}`);
         const result = await response.json();
         if (result.success) {
           setResults(result.data);

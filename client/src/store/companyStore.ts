@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '../utils/apiFetch';
 
 interface Company {
   id: string;
@@ -56,7 +57,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 
-      const response = await fetch(`/api/companies?${params.toString()}`);
+      const response = await apiFetch(`/api/companies?${params.toString()}`);
       const result = await response.json();
       
       if (result.success) {
@@ -76,7 +77,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
   fetchCompanyById: async (id) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/companies/${id}`);
+      const response = await apiFetch(`/api/companies/${id}`);
       const result = await response.json();
       set({ loading: false });
       if (result.success) return result.data.company;
@@ -90,7 +91,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
   createCompany: async (data) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/companies', {
+      const response = await apiFetch('/api/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -108,7 +109,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
   updateCompany: async (id, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/companies/${id}`, {
+      const response = await apiFetch(`/api/companies/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -125,7 +126,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
   deleteCompany: async (id) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`/api/companies/${id}`, {
+      const response = await apiFetch(`/api/companies/${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();
@@ -139,7 +140,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
 
   searchLocations: async (name, location) => {
     try {
-      const response = await fetch(`/api/companies/search-location?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
+      const response = await apiFetch(`/api/companies/search-location?name=${encodeURIComponent(name)}&location=${encodeURIComponent(location)}`);
       const result = await response.json();
       if (result.success) return result.data.candidates || [];
       return [];
@@ -152,7 +153,7 @@ export const useCompanyStore = create<CompanyState>((set) => ({
   resolveLocation: async (companyId, placeId) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/companies/resolve-location', {
+      const response = await apiFetch('/api/companies/resolve-location', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId, placeId }),

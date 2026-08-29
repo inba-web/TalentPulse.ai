@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 import { useJobStore } from '../store/jobStore';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
@@ -148,15 +149,25 @@ export default function JobsPage() {
           <p className="text-xs text-text-muted mt-1">Author specifications, match candidates, and track job opening approvals.</p>
         </div>
         
-        {hasPermission('JOB_CREATE') && (
+        <div className="flex gap-3">
           <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary transition cursor-pointer"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border-primary hover:border-border-hover text-text-primary text-xs font-semibold rounded bg-surface-1 transition cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>Create job opening</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
-        )}
+          {hasPermission('JOB_CREATE') && (
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create job opening</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

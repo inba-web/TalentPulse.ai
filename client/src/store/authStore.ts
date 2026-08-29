@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '../utils/apiFetch';
 
 interface User {
   id: string;
@@ -29,8 +30,13 @@ interface AuthState {
 // Role base default permissions mapping for client-side routing optimization
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   ADMIN: ['*'], // Superuser
-  MANAGER: ['STUDENT_READ', 'STUDENT_CREATE', 'STUDENT_UPDATE', 'STUDENT_IMPORT', 'RECRUITER_READ', 'REPORT_READ'],
-  LEAD: ['COMPANY_READ', 'COMPANY_CREATE', 'COMPANY_UPDATE', 'COMPANY_IMPORT', 'JOB_READ', 'JOB_CREATE', 'JOB_UPDATE', 'APPROVAL_READ'],
+  MANAGER: ['STUDENT_READ', 'STUDENT_CREATE', 'STUDENT_UPDATE', 'STUDENT_IMPORT', 'RECRUITER_READ', 'REPORT_READ', 'DASHBOARD_READ'],
+  LEAD: [
+    'DASHBOARD_READ',
+    'COMPANY_READ', 'COMPANY_CREATE', 'COMPANY_UPDATE', 'COMPANY_IMPORT', 'COMPANY_DELETE',
+    'JOB_READ', 'JOB_CREATE', 'JOB_UPDATE', 'APPROVAL_READ',
+    'ATS_ANALYSIS', 'RECRUITER_READ', // Can view ATS results + eligible candidates, but NOT student profiles
+  ],
   RECRUITER: ['JOB_READ', 'RECRUITER_READ', 'ATS_ANALYSIS'],
 };
 
@@ -141,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (fullName, email) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await apiFetch('/api/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName, email }),
@@ -162,7 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   changePassword: async (currentPassword, newPassword) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch('/api/auth/change-password', {
+      const response = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword }),
