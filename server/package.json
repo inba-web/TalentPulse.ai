@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "dev": "nodemon --watch src --ext ts,json --exec ts-node src/server.ts",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
