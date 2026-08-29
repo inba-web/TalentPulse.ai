@@ -56,6 +56,10 @@ async function runSchemaMigrations() {
       CREATE INDEX IF NOT EXISTS "CompanyArchive_deletedAt_idx" ON "CompanyArchive"("deletedAt");
     `);
 
+    // Purge legacy static ATS analysis cache so dynamic score engine recalculates per candidate
+    await prisma.aTSAnalysis.deleteMany({});
+    logger.info('Purged legacy static ATS score cache.');
+
     // Ensure default demo users exist if DB is empty
     const userCount = await prisma.user.count();
     if (userCount === 0) {
