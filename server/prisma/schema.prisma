@@ -144,6 +144,7 @@ model Student {
   collegeEmail          String                 @unique
   mobileNumber          String                 @unique
   studentPhotoUrl       String?
+  selfIntroVideoUrl     String?
   graduationDate        DateTime
   placementStatus       PlacementStatus        @default(YET_TO_BE_PLACED)
 

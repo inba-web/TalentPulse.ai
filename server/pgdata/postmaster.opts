@@ -1,0 +1,1 @@
+/usr/lib/postgresql/18/bin/postgres "-D" "/home/inbavarunan/Desktop/TalenPulse.ai/server/pgdata" "-p" "5433" "-k" "/home/inbavarunan/Desktop/TalenPulse.ai/server/pgdata"

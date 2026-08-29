@@ -170,24 +170,30 @@ async function main() {
   }
 
   console.log('Seeding administrative users...');
-  const passwordHash = await argon2.hash('Password123!');
+  const defaultHash = await argon2.hash('Password123!');
+  const adminHash = await argon2.hash('admin@123');
 
   const users = [
-    { email: 'admin@talentpulse.ai', fullName: 'Admin User', roleName: RoleName.ADMIN },
-    { email: 'manager@talentpulse.ai', fullName: 'Manager User', roleName: RoleName.MANAGER },
-    { email: 'lead@talentpulse.ai', fullName: 'Lead User', roleName: RoleName.LEAD },
-    { email: 'recruiter@talentpulse.ai', fullName: 'Recruiter User', roleName: RoleName.RECRUITER },
+    { email: 'admin@gmail.com', fullName: 'Admin User', roleName: RoleName.ADMIN, hash: adminHash },
+    { email: 'manager@talentpulse.ai', fullName: 'Manager User', roleName: RoleName.MANAGER, hash: defaultHash },
+    { email: 'lead@talentpulse.ai', fullName: 'Lead User', roleName: RoleName.LEAD, hash: defaultHash },
+    { email: 'recruiter@talentpulse.ai', fullName: 'Recruiter User', roleName: RoleName.RECRUITER, hash: defaultHash },
   ];
 
   const userMap: Record<string, string> = {};
   for (const u of users) {
     const createdUser = await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: {
+        email: u.email,
+        fullName: u.fullName,
+        passwordHash: u.hash,
+        roleName: u.roleName,
+      },
       create: {
         email: u.email,
         fullName: u.fullName,
-        passwordHash,
+        passwordHash: u.hash,
         roleName: u.roleName,
         isEmailVerified: true,
       },
@@ -292,7 +298,7 @@ async function main() {
     const portfolio = `https://${fName.toLowerCase()}${i}.dev`;
 
     // Set some students as Placed, Unplaced, or Terminated
-    let placementStatus = PlacementStatus.YET_TO_BE_PLACED;
+    let placementStatus: PlacementStatus = PlacementStatus.YET_TO_BE_PLACED;
     if (i <= 20) {
       placementStatus = PlacementStatus.PLACED;
     } else if (i === 99 || i === 100) {

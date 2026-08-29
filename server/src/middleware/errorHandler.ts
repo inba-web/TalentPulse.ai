@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
-import { crypto } from '../utils/crypto'; // Wait, let's just generate a random request ID or uuid. We can use a simple helper.
 
 export const errorHandler = (
   err: any,

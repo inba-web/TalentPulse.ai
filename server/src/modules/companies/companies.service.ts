@@ -1,0 +1,101 @@
+import { prisma } from '../../config/db';
+import { AppError } from '../../utils/errors';
+import { OpportunityStatus } from '@prisma/client';
+import { GooglePlacesProvider } from '../../services/places/google';
+
+export class CompanyService {
+  public static async createCompany(data: any) {
+    const existing = await prisma.company.findUnique({ where: { name: data.name } });
+    if (existing) throw new AppError('Company name already registered.', 400, 'COMPANY_EXISTS');
+
+    return prisma.company.create({ data });
+  }
+
+  public static async updateCompany(id: string, data: any) {
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
+
+    return prisma.company.update({
+      where: { id },
+      data,
+    });
+  }
+
+  public static async getCompanies(filters: {
+    search?: string;
+    status?: OpportunityStatus;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (filters.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { industry: { contains: filters.search, mode: 'insensitive' } },
+        { contactPerson: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.status) where.status = filters.status;
+
+    const [companies, total] = await Promise.all([
+      prisma.company.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.company.count({ where }),
+    ]);
+
+    return { companies, total, page, limit };
+  }
+
+  public static async getCompanyById(id: string) {
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        jobs: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
+    return company;
+  }
+
+  /**
+   * Run Google Places search for candidate locations.
+   */
+  public static async searchLocations(name: string, location: string) {
+    const query = `${name} ${location}`;
+    return GooglePlacesProvider.searchPlaces(query);
+  }
+
+  /**
+   * Fetch details for a Place ID and update company location fields.
+   */
+  public static async resolveCompanyLocation(companyId: string, placeId: string) {
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
+
+    const details = await GooglePlacesProvider.getPlaceDetails(placeId);
+
+    return prisma.company.update({
+      where: { id: companyId },
+      data: {
+        exactAddress: details.exactAddress,
+        latitude: details.latitude,
+        longitude: details.longitude,
+        placeId,
+        mapsUrl: details.mapsUrl,
+      },
+    });
+  }
+}

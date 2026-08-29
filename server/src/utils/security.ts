@@ -1,7 +1,4 @@
 import axios from 'axios';
-import { dns } from 'dns';
-import { promisify } from 'util';
-import { ip } from 'ip'; // Wait, we can implement a lightweight IP parser or use standard node dns lookup to filter private IPs.
 import dnsPromises from 'dns/promises';
 import { URL } from 'url';
 import { AppError } from './errors';
@@ -72,7 +69,7 @@ export async function secureDownload(fileUrl: string): Promise<{ data: Buffer; c
       responseType: 'arraybuffer',
     });
 
-    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const contentType = String(response.headers['content-type'] || 'application/octet-stream');
     return {
       data: Buffer.from(response.data),
       contentType,
