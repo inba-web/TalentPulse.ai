@@ -3,78 +3,104 @@
 @tailwind utilities;
 
 :root {
-  /* Blue — Primary / Trust */
-  --color-primary: #2563EB;          /* Slate Blue / Royal Blue */
-  --color-primary-hover: #1D4ED8;    /* Royal Blue Hover */
-  --color-primary-active: #1E40AF;   /* Navy Active */
-  --color-primary-soft: #EFF6FF;     /* Blue 50 */
-  --color-primary-background: #F8FAFC;
+  /* Background Scale (True Solid Black) */
+  --color-background-primary: #000000;
+  --color-background-secondary: #050505;
+  --color-background-tertiary: #0A0A0A;
 
-  /* Orange — Action / Attention (Secondary) */
-  --color-secondary: #EA580C;        /* Enterprise Orange */
-  --color-secondary-hover: #C2410C;  /* Orange Hover */
-  --color-secondary-active: #9A3412; /* Dark Orange Active */
-  --color-secondary-soft: #FFF7ED;   /* Orange 50 */
-  --color-secondary-background: #FFF7ED;
+  /* Surface Scale (Elevation - Pure Charcoal Tiers) */
+  --color-surface-1: #0A0A0A;
+  --color-surface-2: #121212;
+  --color-surface-3: #1A1A1A;
+  --color-surface-elevated: #242424;
 
-  /* Green — Success / Growth */
-  --color-success: #16A34A;          /* Success Green */
-  --color-success-hover: #15803D;    /* Success Green Hover */
-  --color-success-active: #166534;   /* Success Green Active */
-  --color-success-soft: #F0FDF4;     /* Green 50 */
-  --color-success-background: #F0FDF4;
+  /* Border Scale (Solid Borders) */
+  --color-border-primary: #1C1C1C;
+  --color-border-secondary: #121212;
+  --color-border-hover: #2B2B2B;
+  --color-border-selected: #22C55E;
 
-  /* Warning / Pending */
-  --color-warning: #EA580C;          /* Orange Warning */
-  --color-warning-hover: #C2410C;
-  --color-warning-active: #9A3412;
-  --color-warning-soft: #FFF7ED;     /* Orange 50 */
-  --color-warning-background: #FFF7ED;
+  /* Brand / Accents (Bright Emerald Green) */
+  --color-primary: #22C55E;
+  --color-primary-hover: #16A34A;
+  --color-primary-active: #15803D;
+  --color-primary-soft: rgba(34, 197, 94, 0.1);
 
-  /* Error / Danger */
-  --color-error: #DC2626;            /* Error Red */
-  --color-error-hover: #B91C1C;
-  --color-error-active: #7F1D1D;
-  --color-error-soft: #FEE2E2;
-  --color-error-background: #FEF2F2;
+  /* Semantics */
+  --color-success: #22C55E;
+  --color-success-hover: #16A34A;
+  --color-success-soft: rgba(34, 197, 94, 0.1);
 
-  /* Core Layout */
-  --color-background: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-surface-elevated: #FFFFFF;
-  --color-border: #E2E8F0;
-  --color-border-strong: #CBD5E1;
+  --color-warning: #F97316;
+  --color-warning-hover: #EA580C;
+  --color-warning-soft: rgba(249, 115, 22, 0.1);
 
-  /* Typography */
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #334155;   /* Slate 700 */
-  --color-text-muted: #64748B;       /* Slate 500 */
-  --color-text-disabled: #94A3B8;    /* Slate 400 */
+  --color-error: #EF4444;
+  --color-error-hover: #DC2626;
+  --color-error-soft: rgba(239, 68, 68, 0.1);
+
+  --color-info: #22C55E;
+
+  /* Typography (Mint & Forest Scales - NO WHITE/GRAY!) */
+  --color-text-primary: #E8F5E9; /* Pale Mint */
+  --color-text-secondary: #A5D6A7; /* Light Green */
+  --color-text-muted: #66BB6A; /* Medium Green */
+  --color-text-disabled: #2E7D32; /* Dark Green */
+}
+
+/* Premium Gradient System Helpers */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #22C55E 0%, #0D9488 100%) !important;
+}
+
+.bg-gradient-action {
+  background: linear-gradient(135deg, #F97316 0%, #F59E0B 100%) !important;
+}
+
+.bg-gradient-growth {
+  background: linear-gradient(135deg, #22C55E 0%, #0D9488 100%) !important;
+}
+
+.glow-primary {
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.25) !important;
+}
+
+.glow-action {
+  box-shadow: 0 0 14px rgba(249, 115, 22, 0.25) !important;
+}
+
+.glow-growth {
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.25) !important;
+}
+
+.gradient-text-primary {
+  background: linear-gradient(135deg, #22C55E 0%, #0D9488 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
 /* Backward compatibility overrides for existing gray/slate utility mappings */
 .text-secondary {
-  color: var(--color-text-muted) !important;
+  color: var(--color-text-secondary) !important;
 }
+
 .hover\:text-secondary:hover {
-  color: var(--color-text-muted) !important;
+  color: var(--color-text-secondary) !important;
 }
+
 .group-hover\:text-secondary:hover {
-  color: var(--color-text-muted) !important;
+  color: var(--color-text-secondary) !important;
 }
+
 .border-secondary {
-  border-color: var(--color-border) !important;
-}
-.bg-secondary\/20 {
-  background-color: rgba(100, 116, 139, 0.2) !important;
-}
-.bg-secondary\/40 {
-  background-color: rgba(100, 116, 139, 0.4) !important;
+  border-color: var(--color-border-secondary) !important;
 }
 
 @layer base {
   body {
-    @apply font-sans bg-background text-text;
+    @apply font-sans;
+    background-color: var(--color-background-primary);
+    color: var(--color-text-secondary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -91,23 +117,40 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.2);
+  background-color: var(--color-border-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.4);
+  background-color: var(--color-border-hover);
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism Classes (adapted for Dark Mode) */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(17, 24, 32, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .glass-dark {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(11, 15, 20, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* Force global Black + Green theme overrides to eliminate all whites */
+.text-white {
+  color: var(--color-text-primary) !important;
+}
+
+.bg-white {
+  background-color: var(--color-surface-1) !important;
+}
+
+.border-white {
+  border-color: var(--color-border-primary) !important;
+}
+
+.shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow {
+  box-shadow: none !important;
 }

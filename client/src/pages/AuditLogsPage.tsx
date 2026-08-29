@@ -38,19 +38,19 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-text tracking-tight">System Audit Trail</h1>
-        <p className="text-sm text-secondary font-medium mt-1">Immutable ledger of administrative actions, compliance logs, and security occurrences.</p>
+        <h1 className="text-2xl font-extrabold text-text-primary tracking-tight">Audit Logs</h1>
+        <p className="text-sm text-text-muted font-medium mt-1">Immutable audit trail of administrative activities and compliance events.</p>
       </div>
 
       {/* Logs container */}
-      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden p-6">
+      <div className="bg-surface-1 rounded-lg border border-border-primary p-6">
         {loading && logs.length === 0 ? (
-          <div className="text-center py-16 text-secondary">
+          <div className="text-center py-16 text-text-muted">
             <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-            <span>Loading security ledger...</span>
+            <span>Loading audit ledger...</span>
           </div>
         ) : logs.length === 0 ? (
           <div className="text-center py-16 text-secondary">
@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
           <div className="relative border-l border-slate-200 ml-4 pl-8 space-y-6">
             {logs.map((log) => (
               <div key={log.id} className="relative flex flex-col md:flex-row md:justify-between items-start gap-4">
-                
+
                 {/* Timeline node icon */}
                 <span className="absolute -left-[41px] top-1 p-1 bg-surface rounded-full border border-slate-200">
                   <span className="w-3.5 h-3.5 rounded-full bg-slate-400 block" />
@@ -81,7 +81,7 @@ export default function AuditLogsPage() {
                     Modified <strong className="text-text">{log.entity}</strong> record
                     {log.entityId && <span className="font-mono text-[10px] bg-slate-50 border border-slate-200 px-1 rounded ml-1">ID: {log.entityId}</span>}
                   </p>
-                  
+
                   {log.metadata && (
                     <div className="text-[10px] font-mono bg-slate-50 p-2 border border-slate-200 rounded max-w-lg overflow-x-auto text-secondary leading-relaxed">
                       {JSON.stringify(log.metadata)}

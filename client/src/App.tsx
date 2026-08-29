@@ -12,7 +12,10 @@ import CompaniesPage from './pages/CompaniesPage';
 import JobsPage from './pages/JobsPage';
 import RecruiterPage from './pages/RecruiterPage';
 import ReportsPage from './pages/ReportsPage';
-import AuditLogsPage from './pages/AuditLogsPage';
+import SettingsPage from './pages/SettingsPage';
+import JdUploadAtsPage from './pages/JdUploadAtsPage';
+
+
 
 // Private Route Guard Component
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -112,13 +115,23 @@ function App() {
           }
         />
         <Route
-          path="/audit"
+          path="/settings"
           element={
             <PrivateRoute>
-              <AuditLogsPage />
+              <SettingsPage />
             </PrivateRoute>
           }
         />
+        <Route
+          path="/jd-matcher"
+          element={
+            <PrivateRoute>
+              <JdUploadAtsPage />
+            </PrivateRoute>
+          }
+        />
+
+
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

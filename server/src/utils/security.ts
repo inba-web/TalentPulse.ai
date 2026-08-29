@@ -37,7 +37,13 @@ const isPrivateIP = (ipAddress: string): boolean => {
  */
 export async function secureDownload(fileUrl: string): Promise<{ data: Buffer; contentType: string }> {
   try {
-    const parsedUrl = new URL(fileUrl);
+    let finalUrl = fileUrl;
+    // Extract file ID from google drive links and rewrite to direct download UC link
+    const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/id=([a-zA-Z0-9_-]+)/) || fileUrl.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      finalUrl = `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+    }
+    const parsedUrl = new URL(finalUrl);
     
     // Enforce HTTPS
     if (parsedUrl.protocol !== 'https:') {
@@ -62,7 +68,7 @@ export async function secureDownload(fileUrl: string): Promise<{ data: Buffer; c
     // Request settings
     const response = await axios({
       method: 'get',
-      url: fileUrl,
+      url: finalUrl,
       timeout: 5000, // 5s timeout
       maxContentLength: 10 * 1024 * 1024, // Max 10MB
       maxRedirects: 2, // Strict redirect limit

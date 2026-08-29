@@ -36,4 +36,19 @@ export class AtsController {
       data: { candidates },
     });
   });
+
+  /**
+   * Run standalone JD matching for all eligible students.
+   */
+  public static analyzeJdForCandidates = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    const { jdText } = req.body;
+    const fileBuffer = req.file?.buffer;
+
+    const candidates = await AtsService.analyzeJdForCandidates(jdText, fileBuffer);
+
+    res.status(200).json({
+      success: true,
+      data: { candidates },
+    });
+  });
 }

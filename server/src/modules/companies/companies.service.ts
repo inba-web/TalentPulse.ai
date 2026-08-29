@@ -24,6 +24,8 @@ export class CompanyService {
   public static async getCompanies(filters: {
     search?: string;
     status?: OpportunityStatus;
+    industry?: string;
+    employeeSizeTier?: string;
     page?: number;
     limit?: number;
   }) {
@@ -42,6 +44,22 @@ export class CompanyService {
     }
 
     if (filters.status) where.status = filters.status;
+    
+    if (filters.industry) {
+      where.industry = { equals: filters.industry, mode: 'insensitive' };
+    }
+
+    if (filters.employeeSizeTier) {
+      if (filters.employeeSizeTier === 'SMALL') {
+        where.employeeSize = { lt: 50 };
+      } else if (filters.employeeSizeTier === 'MEDIUM') {
+        where.employeeSize = { gte: 50, lte: 250 };
+      } else if (filters.employeeSizeTier === 'LARGE') {
+        where.employeeSize = { gte: 251, lte: 1000 };
+      } else if (filters.employeeSizeTier === 'ENTERPRISE') {
+        where.employeeSize = { gt: 1000 };
+      }
+    }
 
     const [companies, total] = await Promise.all([
       prisma.company.findMany({
@@ -97,5 +115,11 @@ export class CompanyService {
         mapsUrl: details.mapsUrl,
       },
     });
+  }
+
+  public static async deleteCompany(id: string) {
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
+    return prisma.company.delete({ where: { id } });
   }
 }

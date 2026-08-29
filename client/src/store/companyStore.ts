@@ -25,6 +25,8 @@ interface CompanyState {
   fetchCompanies: (filters: {
     search?: string;
     status?: string;
+    industry?: string;
+    employeeSizeTier?: string;
     page?: number;
     limit?: number;
   }) => Promise<void>;
@@ -32,6 +34,7 @@ interface CompanyState {
   fetchCompanyById: (id: string) => Promise<any>;
   createCompany: (data: any) => Promise<Company>;
   updateCompany: (id: string, data: any) => Promise<void>;
+  deleteCompany: (id: string) => Promise<void>;
   searchLocations: (name: string, location: string) => Promise<any[]>;
   resolveLocation: (companyId: string, placeId: string) => Promise<void>;
 }
@@ -48,6 +51,8 @@ export const useCompanyStore = create<CompanyState>((set) => ({
       const params = new URLSearchParams();
       if (filters.search) params.append('search', filters.search);
       if (filters.status) params.append('status', filters.status);
+      if (filters.industry) params.append('industry', filters.industry);
+      if (filters.employeeSizeTier) params.append('employeeSizeTier', filters.employeeSizeTier);
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 
@@ -111,6 +116,21 @@ export const useCompanyStore = create<CompanyState>((set) => ({
       const result = await response.json();
       set({ loading: false });
       if (!result.success) throw new Error(result.error?.message || 'Failed to update company');
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  deleteCompany: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch(`/api/companies/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      set({ loading: false });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to delete company');
     } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;

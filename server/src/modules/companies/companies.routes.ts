@@ -10,7 +10,9 @@ companiesRouter.get('/', hasPermission('COMPANY_READ'), CompanyController.getCom
 companiesRouter.post('/', hasPermission('COMPANY_CREATE'), CompanyController.createCompany);
 companiesRouter.get('/search-location', hasPermission('COMPANY_CREATE'), CompanyController.searchLocations);
 companiesRouter.post('/resolve-location', hasPermission('COMPANY_CREATE'), CompanyController.resolveLocation);
+companiesRouter.get('/industries', hasPermission('COMPANY_READ'), CompanyController.getIndustries);
 companiesRouter.get('/:id', hasPermission('COMPANY_READ'), CompanyController.getCompanyById);
 companiesRouter.patch('/:id', hasPermission('COMPANY_UPDATE'), CompanyController.updateCompany);
+companiesRouter.delete('/:id', hasPermission('COMPANY_DELETE'), CompanyController.deleteCompany);
 
 export default companiesRouter;

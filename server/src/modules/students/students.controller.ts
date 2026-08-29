@@ -170,7 +170,25 @@ export class StudentController {
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const rows = xlsx.utils.sheet_to_json(sheet);
+
+    // Get all rows as raw arrays to scan for the header row index
+    const rawRows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+    let headerRowIndex = 0;
+    
+    // Scan the first 10 rows for fields containing 'roll' or 'name'
+    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+      const row = rawRows[i];
+      if (Array.isArray(row)) {
+        const hasRoll = row.some(cell => cell && String(cell).toLowerCase().replace(/[\s_\-%/]/g, '').includes('roll'));
+        const hasName = row.some(cell => cell && String(cell).toLowerCase().replace(/[\s_\-%/]/g, '').includes('name'));
+        if (hasRoll || hasName) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    }
+
+    const rows = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex });
 
     if (rows.length === 0) {
       throw new AppError('No records found in the spreadsheet.', 400, 'EMPTY_FILE');
@@ -204,6 +222,17 @@ export class StudentController {
     res.status(200).json({
       success: true,
       data: result,
+    });
+  });
+
+  public static getDepartments = catchAsync(async (req: Request, res: Response) => {
+    const { prisma } = require('../../config/db');
+    const departments = await prisma.department.findMany({
+      orderBy: { name: 'asc' },
+    });
+    res.status(200).json({
+      success: true,
+      data: departments,
     });
   });
 }

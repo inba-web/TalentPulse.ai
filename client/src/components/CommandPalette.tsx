@@ -79,16 +79,16 @@ export default function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-4 pt-[10vh] bg-slate-900/60 backdrop-blur-sm flex justify-center items-start">
-      <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
-        
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4 pt-[10vh] bg-background/80 flex justify-center items-start">
+      <div className="w-full max-w-2xl bg-surface-elevated border border-border-primary rounded shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
+
         {/* Search Input */}
-        <div className="flex items-center px-4 border-b border-border bg-slate-50/50">
-          <Search className="w-5 h-5 text-secondary" />
+        <div className="flex items-center px-4 border-b border-border-primary bg-surface-1">
+          <Search className="w-5 h-5 text-text-muted" />
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 w-full h-14 px-3 text-sm bg-transparent border-0 outline-none text-text placeholder-secondary focus:ring-0"
+            className="flex-1 w-full h-14 px-3 text-sm bg-transparent border-0 outline-none text-text-primary placeholder-text-muted focus:ring-0"
             placeholder="Search students, companies, jobs, roll numbers... (Esc to close)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -99,15 +99,15 @@ export default function CommandPalette() {
         {/* Results Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {query.trim().length === 0 && (
-            <div className="text-center py-8 text-secondary text-sm font-medium">
-              Start typing to search placement records...
+            <div className="text-center py-8 text-text-muted text-sm font-medium">
+              Start typing to search records...
             </div>
           )}
 
           {query.trim().length > 0 &&
             Object.keys(results).every((key) => results[key as keyof typeof results].length === 0) &&
             !loading && (
-              <div className="text-center py-8 text-secondary text-sm font-medium">
+              <div className="text-center py-8 text-text-muted text-sm font-medium">
                 No matching results found for "{query}".
               </div>
             )}
@@ -115,7 +115,7 @@ export default function CommandPalette() {
           {/* Group: Students */}
           {results.STUDENTS.length > 0 && (
             <div>
-              <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
+              <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 px-2">
                 Students
               </div>
               <div className="space-y-1">
@@ -123,13 +123,13 @@ export default function CommandPalette() {
                   <button
                     key={item.id}
                     onClick={() => handleSelect('STUDENT', item.id)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-border transition duration-150 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2.5 rounded hover:bg-surface-2 border border-transparent hover:border-border-primary transition duration-150 flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-text">{item.subtitle}</div>
-                      <div className="text-xs text-secondary">{item.title}</div>
+                      <div className="text-sm font-semibold text-text-primary">{item.subtitle}</div>
+                      <div className="text-xs text-text-muted">{item.title}</div>
                     </div>
-                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-surface-3 text-text-secondary px-2 py-0.5 rounded">
                       {item.tag}
                     </span>
                   </button>
@@ -141,7 +141,7 @@ export default function CommandPalette() {
           {/* Group: Companies */}
           {results.COMPANIES.length > 0 && (
             <div>
-              <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
+              <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 px-2">
                 Companies
               </div>
               <div className="space-y-1">
@@ -149,13 +149,13 @@ export default function CommandPalette() {
                   <button
                     key={item.id}
                     onClick={() => handleSelect('COMPANY', item.id)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-border transition duration-150 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2.5 rounded hover:bg-surface-2 border border-transparent hover:border-border-primary transition duration-150 flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-text">{item.title}</div>
-                      <div className="text-xs text-secondary">{item.subtitle}</div>
+                      <div className="text-sm font-semibold text-text-primary">{item.title}</div>
+                      <div className="text-xs text-text-muted">{item.subtitle}</div>
                     </div>
-                    <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
                       {item.tag}
                     </span>
                   </button>
@@ -167,7 +167,7 @@ export default function CommandPalette() {
           {/* Group: Jobs */}
           {results.JOBS.length > 0 && (
             <div>
-              <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
+              <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 px-2">
                 Jobs
               </div>
               <div className="space-y-1">
@@ -175,13 +175,13 @@ export default function CommandPalette() {
                   <button
                     key={item.id}
                     onClick={() => handleSelect('JOB', item.id)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-border transition duration-150 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2.5 rounded hover:bg-surface-2 border border-transparent hover:border-border-primary transition duration-150 flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-text">{item.title}</div>
-                      <div className="text-xs text-secondary">{item.subtitle}</div>
+                      <div className="text-sm font-semibold text-text-primary">{item.title}</div>
+                      <div className="text-xs text-text-muted">{item.subtitle}</div>
                     </div>
-                    <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-warning/10 text-warning px-2 py-0.5 rounded">
                       {item.tag}
                     </span>
                   </button>
@@ -193,20 +193,20 @@ export default function CommandPalette() {
           {/* Group: Users */}
           {results.USERS.length > 0 && (
             <div>
-              <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
+              <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 px-2">
                 System Staff
               </div>
               <div className="space-y-1">
                 {results.USERS.map((item) => (
                   <div
                     key={item.id}
-                    className="w-full px-3 py-2.5 rounded-lg border border-transparent flex items-center justify-between"
+                    className="w-full px-3 py-2.5 rounded border border-transparent flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-text">{item.title}</div>
-                      <div className="text-xs text-secondary">{item.subtitle}</div>
+                      <div className="text-sm font-semibold text-text-primary">{item.title}</div>
+                      <div className="text-xs text-text-muted">{item.subtitle}</div>
                     </div>
-                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-success/10 text-success px-2 py-0.5 rounded">
                       {item.tag}
                     </span>
                   </div>
@@ -215,10 +215,10 @@ export default function CommandPalette() {
             </div>
           )}
         </div>
-        
+
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-border bg-slate-50/50 flex justify-between items-center text-[10px] text-secondary font-medium">
-          <span>Search query matching records</span>
+        <div className="px-4 py-3 border-t border-border-primary bg-surface-1 flex justify-between items-center text-[10px] text-text-muted font-medium">
+          <span>Search results matching query</span>
           <span>Press Esc to exit</span>
         </div>
       </div>

@@ -171,12 +171,14 @@ async function main() {
 
   console.log('Seeding administrative users...');
   const defaultHash = await argon2.hash('Password123!');
-  const adminHash = await argon2.hash('admin@123');
 
   const users = [
-    { email: 'admin@gmail.com', fullName: 'Admin User', roleName: RoleName.ADMIN, hash: adminHash },
+    { email: 'admin@talentpulse.ai', fullName: 'Admin User', roleName: RoleName.ADMIN, hash: defaultHash },
+    { email: 'admin2@talentpulse.ai', fullName: 'Admin User 2', roleName: RoleName.ADMIN, hash: defaultHash },
     { email: 'manager@talentpulse.ai', fullName: 'Manager User', roleName: RoleName.MANAGER, hash: defaultHash },
+    { email: 'manager2@talentpulse.ai', fullName: 'Manager User 2', roleName: RoleName.MANAGER, hash: defaultHash },
     { email: 'lead@talentpulse.ai', fullName: 'Lead User', roleName: RoleName.LEAD, hash: defaultHash },
+    { email: 'lead2@talentpulse.ai', fullName: 'Lead User 2', roleName: RoleName.LEAD, hash: defaultHash },
     { email: 'recruiter@talentpulse.ai', fullName: 'Recruiter User', roleName: RoleName.RECRUITER, hash: defaultHash },
   ];
 

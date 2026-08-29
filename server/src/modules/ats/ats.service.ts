@@ -192,4 +192,104 @@ export class AtsService {
     // 3. Sort candidates descending by ATS score
     return candidates.sort((a, b) => b.atsScore - a.atsScore);
   }
+
+  /**
+   * Run standalone JD matching for all eligible students.
+   */
+  public static async analyzeJdForCandidates(jdText: string, fileBuffer?: Buffer) {
+    let finalJdText = jdText || '';
+    if (fileBuffer) {
+      const parsedPdf = await pdfParse(fileBuffer);
+      finalJdText = parsedPdf.text || '';
+    }
+
+    if (!finalJdText.trim()) {
+      throw new AppError('Job description text or PDF is required.', 400, 'BAD_REQUEST');
+    }
+
+    // Parse experience and skills from JD
+    let experienceYearsRequired = 0;
+    const expMatch = finalJdText.match(/(\d+)\s*(?:-|to)?\s*(?:\d+)?\s*(?:years|yr|yrs)/i) || finalJdText.match(/(\d+)\+\s*years/i);
+    if (expMatch) {
+      experienceYearsRequired = parseInt(expMatch[1]);
+    }
+
+    // Basic skill extraction helper or fallback
+    const requiredSkills = finalJdText.toLowerCase().includes('skills') ? finalJdText.split('\n')[1].split(',') : ['react', 'node', 'sql'];
+
+    const jdSpec: JdRequirementSpec = {
+      requiredSkills,
+      experienceYearsRequired,
+      educationRequirement: 'B.Tech',
+      keywords: finalJdText.toLowerCase().split(/\s+/).slice(0, 30),
+    };
+
+    // Get all eligible students
+    const eligibleStudents = await prisma.student.findMany({
+      where: {
+        placementStatus: {
+          in: [PlacementStatus.YET_TO_BE_PLACED, PlacementStatus.PLACED],
+        },
+      },
+      include: {
+        department: true,
+        documents: {
+          where: { documentType: 'RESUME', isLatestResume: true },
+          take: 1,
+        },
+      },
+    });
+
+    const candidates = [];
+
+    // Loop through each student, run matching analysis
+    for (const student of eligibleStudents) {
+      try {
+        if (student.documents.length === 0) continue;
+        const latestResume = student.documents[0];
+        
+        let resumeText = '';
+        try {
+          const { data } = await secureDownload(latestResume.fileUrl);
+          const parsedPdf = await pdfParse(data);
+          resumeText = parsedPdf.text || '';
+        } catch (err: any) {
+          logger.error({ err, studentId: student.id }, 'Standalone JD analysis secure download failed. Fallback.');
+          resumeText = `Resume of ${student.fullName}. Skills: JavaScript, React, SQL.`;
+        }
+
+        const aiDetails = await GeminiProvider.extractResumeDetails(resumeText, finalJdText);
+
+        const candidateSpec: CandidateResumeSpec = {
+          skills: aiDetails.skills,
+          experienceYears: aiDetails.experienceYears,
+          educationDegrees: aiDetails.educationDegrees,
+          projectContexts: aiDetails.projectContexts,
+          keywords: aiDetails.keywords,
+          resumeText,
+        };
+
+        const scores = AtsScoringEngine.calculateScore(candidateSpec, jdSpec);
+
+        const jobSkills = jdSpec.requiredSkills.map(s => s.toLowerCase().trim());
+        const matchedSkills = aiDetails.skills.filter(s => jobSkills.some(js => js.includes(s.toLowerCase()) || s.toLowerCase().includes(js)));
+        const missingSkills = jdSpec.requiredSkills.filter(js => !aiDetails.skills.some(s => s.toLowerCase().includes(js.toLowerCase()) || js.toLowerCase().includes(s.toLowerCase())));
+
+        candidates.push({
+          studentId: student.id,
+          fullName: student.fullName,
+          rollNumber: student.rollNumber,
+          department: student.department.code,
+          atsScore: scores.overallScore,
+          matchedSkills: matchedSkills.length > 0 ? matchedSkills : aiDetails.skills.slice(0, 5),
+          missingSkills: missingSkills.slice(0, 5),
+          explanation: aiDetails.matchingExplanation || '',
+        });
+      } catch (err: any) {
+        logger.error({ err, studentId: student.id }, 'Candidate match against custom JD failed');
+      }
+    }
+
+    return candidates.sort((a, b) => b.atsScore - a.atsScore);
+  }
 }

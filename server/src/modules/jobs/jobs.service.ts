@@ -183,13 +183,19 @@ export class JobService {
         include: { company: true, createdBy: true },
       });
 
-      await tx.jobApproval.update({
+      await tx.jobApproval.upsert({
         where: { jobId: id },
-        data: {
+        update: {
           reviewedById: reviewerId,
           reviewedAt: new Date(),
           comment,
         },
+        create: {
+          jobId: id,
+          reviewedById: reviewerId,
+          reviewedAt: new Date(),
+          comment,
+        }
       });
 
       // Notify the Lead user who created it

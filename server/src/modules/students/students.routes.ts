@@ -15,6 +15,7 @@ const studentsRouter = Router();
 // Apply auth to all student routes
 studentsRouter.use(requireAuth);
 
+studentsRouter.get('/departments', StudentController.getDepartments);
 studentsRouter.get('/', hasPermission('STUDENT_READ'), StudentController.getStudents);
 studentsRouter.post('/', hasPermission('STUDENT_CREATE'), StudentController.createStudent);
 studentsRouter.get('/:id', hasPermission('STUDENT_READ'), StudentController.getStudentById);

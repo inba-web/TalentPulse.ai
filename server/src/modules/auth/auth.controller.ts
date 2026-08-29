@@ -229,4 +229,116 @@ export class AuthController {
       data: { user: req.user },
     });
   });
+
+  public static createUser = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.roleName !== 'ADMIN') {
+      throw new AppError('Only administrators can perform this action.', 403, 'FORBIDDEN');
+    }
+
+    const { email, password, fullName, roleName } = req.body;
+    if (!email || !password || !fullName || !roleName) {
+      throw new AppError('Missing required fields.', 400, 'BAD_REQUEST');
+    }
+
+    // Check if user already exists
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new AppError('An account with this email address already exists.', 400, 'USER_EXISTS');
+    }
+
+    // Hash password with Argon2id
+    const passwordHash = await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: 2 ** 16,
+      timeCost: 3,
+      parallelism: 4,
+    });
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        fullName,
+        roleName,
+        isEmailVerified: true,
+      },
+    });
+
+    await AuditService.log({
+      action: 'USER_CREATED_BY_ADMIN',
+      actorId: req.user.id,
+      entity: 'User',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.roleName },
+      ipAddress: req.ip,
+      requestId: (req as any).requestId,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { user },
+    });
+  });
+
+  public static listUsers = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.roleName !== 'ADMIN') {
+      throw new AppError('Only administrators can access user directories.', 403, 'FORBIDDEN');
+    }
+
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        roleName: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  });
+
+  public static updateMe = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError('Authentication required.', 401, 'UNAUTHORIZED');
+    }
+    
+    const { fullName, email } = req.body;
+    if (!fullName || !email) {
+      throw new AppError('Full name and email are required fields.', 400, 'BAD_REQUEST');
+    }
+
+    // Update in DB
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { fullName, email },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        roleName: true,
+        createdAt: true,
+      }
+    });
+
+    await AuditService.log({
+      action: 'PROFILE_UPDATED',
+      actorId: req.user.id,
+      entity: 'User',
+      entityId: req.user.id,
+      metadata: { fullName: updated.fullName, email: updated.email },
+      ipAddress: req.ip,
+      requestId: (req as any).requestId,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { user: updated },
+    });
+  });
 }

@@ -22,6 +22,8 @@ interface AuthState {
   initialize: () => Promise<void>;
   clearError: () => void;
   hasPermission: (permissionCode: string) => boolean;
+  updateProfile: (fullName: string, email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 // Role base default permissions mapping for client-side routing optimization
@@ -134,5 +136,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const perms = ROLE_PERMISSIONS[user.roleName] || [];
     return perms.includes(permissionCode);
+  },
+
+  updateProfile: async (fullName, email) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email }),
+      });
+      const result = await response.json();
+      set({ loading: false });
+      if (result.success) {
+        set({ user: result.data.user });
+      } else {
+        throw new Error(result.error?.message || 'Profile update failed');
+      }
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const result = await response.json();
+      set({ loading: false });
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Password change failed');
+      }
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
   },
 }));

@@ -1,18 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { useStudentStore } from '../store/studentStore';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Plus, Upload, Loader2, FileSpreadsheet, X, Check, AlertCircle } from 'lucide-react';
+import { Search, Plus, Upload, Loader2, FileSpreadsheet, X, Check, AlertCircle, Edit2, Trash2, XOctagon, CheckCircle, Eye, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function StudentsPage() {
-  const { students, total, loading, error, fetchStudents, importStudents, createStudent } = useStudentStore();
-  const { hasPermission } = useAuthStore();
-  
+  const navigate = useNavigate();
+  const {
+    students,
+    total,
+    loading,
+    error,
+    fetchStudents,
+    importStudents,
+    createStudent,
+    updateStudent,
+    deleteStudent,
+    terminateStudent,
+    revokeTermination,
+  } = useStudentStore();
+  const { hasPermission, user: authUser } = useAuthStore();
+  const isAdmin = authUser?.roleName === 'ADMIN';
+
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
   const [status, setStatus] = useState('');
+  const [gender, setGender] = useState('');
+  const [hostelStatus, setHostelStatus] = useState('');
   const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Modal controls
   const [importOpen, setImportOpen] = useState(false);
@@ -20,18 +49,167 @@ export default function StudentsPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
 
-  // Departments list for filter dropdown
-  const depts = [
-    { id: 'CSE', name: 'Computer Science & Engineering' },
-    { id: 'IT', name: 'Information Technology' },
-    { id: 'ECE', name: 'Electronics & Communication Engineering' },
-    { id: 'EEE', name: 'Electrical & Electronics Engineering' },
-    { id: 'MECH', name: 'Mechanical Engineering' },
-  ];
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editDeptId, setEditDeptId] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [editHostelStatus, setEditHostelStatus] = useState('');
+  const [editPersonalEmail, setEditPersonalEmail] = useState('');
+  const [editCollegeEmail, setEditCollegeEmail] = useState('');
+  const [editMobileNumber, setEditMobileNumber] = useState('');
+  const [editGraduationDate, setEditGraduationDate] = useState('');
+  const [editSslc, setEditSslc] = useState('');
+  const [editHsc, setEditHsc] = useState('');
+  const [editUg, setEditUg] = useState('');
+  const [editPg, setEditPg] = useState('');
+  const [editGithub, setEditGithub] = useState('');
+  const [editLinkedin, setEditLinkedin] = useState('');
+  const [editPortfolio, setEditPortfolio] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Delete dialog state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Terminate dialog state
+  const [terminateOpen, setTerminateOpen] = useState(false);
+  const [terminatingStudentId, setTerminatingStudentId] = useState<string | null>(null);
+  const [terminateReason, setTerminateReason] = useState('');
+  const [terminateLoading, setTerminateLoading] = useState(false);
+
+  // Revoke dialog state
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [revokingStudentId, setRevokingStudentId] = useState<string | null>(null);
+  const [revokeLoading, setRevokeLoading] = useState(false);
+
+  const handleOpenEdit = (student: any) => {
+    setEditingStudent(student);
+    setEditFullName(student.fullName);
+    setEditDeptId(student.departmentId);
+    setEditGender(student.gender);
+    setEditHostelStatus(student.hostelStatus);
+    setEditPersonalEmail(student.personalEmail);
+    setEditCollegeEmail(student.collegeEmail);
+    setEditMobileNumber(student.mobileNumber);
+    setEditGraduationDate(student.graduationDate ? new Date(student.graduationDate).toISOString().split('T')[0] : '');
+    setEditSslc(student.academics?.sslcPercentage ? String(student.academics.sslcPercentage) : '');
+    setEditHsc(student.academics?.hscPercentage ? String(student.academics.hscPercentage) : '');
+    setEditUg(student.academics?.ugPercentage ? String(student.academics.ugPercentage) : '');
+    setEditPg(student.academics?.pgPercentage ? String(student.academics.pgPercentage) : '');
+    setEditGithub(student.links?.githubUrl || '');
+    setEditLinkedin(student.links?.linkedinUrl || '');
+    setEditPortfolio(student.links?.portfolioUrl || '');
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+    setEditLoading(true);
+    try {
+      await updateStudent(editingStudent.id, {
+        fullName: editFullName,
+        departmentId: editDeptId,
+        gender: editGender,
+        hostelStatus: editHostelStatus,
+        personalEmail: editPersonalEmail,
+        collegeEmail: editCollegeEmail,
+        mobileNumber: editMobileNumber,
+        graduationDate: editGraduationDate,
+        sslcPercentage: Number(editSslc),
+        hscPercentage: Number(editHsc),
+        ugPercentage: Number(editUg),
+        pgPercentage: editPg ? Number(editPg) : null,
+        githubUrl: editGithub || null,
+        linkedinUrl: editLinkedin || null,
+        portfolioUrl: editPortfolio || null,
+      });
+      setEditOpen(false);
+      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+    } catch (err: any) {
+      alert(err.message || 'Update failed');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingStudentId) return;
+    setDeleteLoading(true);
+    try {
+      await deleteStudent(deletingStudentId);
+      setDeleteOpen(false);
+      setDeletingStudentId(null);
+      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+    } catch (err: any) {
+      alert(err.message || 'Deletion failed');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleTerminateConfirm = async () => {
+    if (!terminatingStudentId || !terminateReason) return;
+    setTerminateLoading(true);
+    try {
+      await terminateStudent(terminatingStudentId, terminateReason);
+      setTerminateOpen(false);
+      setTerminatingStudentId(null);
+      setTerminateReason('');
+      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+    } catch (err: any) {
+      alert(err.message || 'Termination failed');
+    } finally {
+      setTerminateLoading(false);
+    }
+  };
+
+  const handleRevokeConfirm = async () => {
+    if (!revokingStudentId) return;
+    setRevokeLoading(true);
+    try {
+      await revokeTermination(revokingStudentId);
+      setRevokeOpen(false);
+      setRevokingStudentId(null);
+      fetchStudents({ search, departmentId: dept, placementStatus: status, gender, hostelStatus, page, limit: 10 });
+    } catch (err: any) {
+      alert(err.message || 'Revocation failed');
+    } finally {
+      setRevokeLoading(false);
+    }
+  };
+
+  const [depts, setDepts] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchStudents({ search, departmentId: dept, placementStatus: status, page, limit: 10 });
-  }, [search, dept, status, page]);
+    const loadDepts = async () => {
+      try {
+        const res = await fetch('/api/students/departments');
+        const result = await res.json();
+        if (result.success) {
+          setDepts(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to load departments:', err);
+      }
+    };
+    loadDepts();
+  }, []);
+
+  useEffect(() => {
+    fetchStudents({
+      search,
+      departmentId: dept,
+      placementStatus: status,
+      gender,
+      hostelStatus,
+      page,
+      limit: 10,
+    });
+  }, [search, dept, status, gender, hostelStatus, page]);
 
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +234,19 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-text tracking-tight">Student Intelligence Directory</h1>
-          <p className="text-sm text-secondary font-medium">Evaluate academic benchmarks and eligibility status.</p>
+          <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Candidates</h1>
+          <p className="text-xs text-text-muted mt-1">Filter and manage student academic benchmarks and directory records.</p>
         </div>
-        
+
         <div className="flex gap-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border-primary hover:border-border-hover text-text-primary text-xs font-semibold rounded bg-surface-1 transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
           {hasPermission('STUDENT_IMPORT') && (
             <button
               onClick={() => {
@@ -68,7 +254,7 @@ export default function StudentsPage() {
                 setImportFile(null);
                 setImportResult(null);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 border border-border bg-surface text-text hover:border-slate-400 hover:shadow-sm text-xs font-semibold rounded-lg transition duration-150 cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 border border-border-primary bg-surface-1 text-text-primary hover:border-border-hover text-xs font-semibold rounded transition duration-150 cursor-pointer"
             >
               <Upload className="w-4 h-4" />
               <span>Import spreadsheet</span>
@@ -78,16 +264,16 @@ export default function StudentsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-surface p-4 rounded-xl border border-border shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        
+      <div className="bg-surface-1 p-4 rounded border border-border-primary flex flex-col md:flex-row gap-4 items-center justify-between">
+
         {/* Search */}
         <div className="relative w-full md:max-w-xs">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-text-muted">
             <Search className="w-4 h-4" />
           </span>
           <input
             type="text"
-            className="w-full h-10 pl-9 pr-4 border border-border rounded-lg text-xs outline-none bg-background focus:border-primary transition"
+            className="w-full h-10 pl-9 pr-4 border border-border-primary rounded text-xs outline-none bg-background-secondary focus:border-primary text-text-primary transition"
             placeholder="Search roll number, name, email..."
             value={search}
             onChange={(e) => {
@@ -101,7 +287,7 @@ export default function StudentsPage() {
         <div className="flex flex-wrap gap-4 w-full md:w-auto">
           {/* Department */}
           <select
-            className="h-10 border border-border rounded-lg px-3 text-xs bg-background text-text focus:border-primary outline-none transition"
+            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={dept}
             onChange={(e) => {
               setDept(e.target.value);
@@ -118,7 +304,7 @@ export default function StudentsPage() {
 
           {/* Status */}
           <select
-            className="h-10 border border-border rounded-lg px-3 text-xs bg-background text-text focus:border-primary outline-none transition"
+            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
@@ -130,15 +316,44 @@ export default function StudentsPage() {
             <option value="PLACED">Placed</option>
             <option value="TERMINATED">Terminated</option>
           </select>
+
+          {/* Gender */}
+          <select
+            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+            value={gender}
+            onChange={(e) => {
+              setGender(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All Genders</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+            <option value="OTHER">Other</option>
+          </select>
+
+          {/* Hostel Status */}
+          <select
+            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+            value={hostelStatus}
+            onChange={(e) => {
+              setHostelStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All Residencies</option>
+            <option value="HOSTEL">Hostel</option>
+            <option value="DAY_SCHOLAR">Day Scholar</option>
+          </select>
         </div>
       </div>
 
       {/* Students Data Table */}
-      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-surface-1 rounded border border-border-primary overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-border text-[11px] font-bold text-secondary uppercase tracking-wider">
+              <tr className="bg-background-tertiary border-b border-border-primary text-[11px] font-bold text-text-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Roll Number</th>
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Department</th>
@@ -147,43 +362,95 @@ export default function StudentsPage() {
                 <th className="px-6 py-4 text-center">HSC %</th>
                 <th className="px-6 py-4 text-center">UG %</th>
                 <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-right">Profile</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-sm text-text">
+            <tbody className="divide-y divide-border-primary text-sm text-text-secondary">
               {loading && students.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-secondary font-medium">
+                  <td colSpan={9} className="text-center py-12 text-text-muted font-medium">
                     <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
                     <span>Loading student directory...</span>
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-secondary font-medium">
+                  <td colSpan={9} className="text-center py-12 text-text-muted font-medium">
                     No matching student records found.
                   </td>
                 </tr>
               ) : (
                 students.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50/30 transition duration-150">
-                    <td className="px-6 py-4 font-mono font-semibold text-xs">{student.rollNumber}</td>
-                    <td className="px-6 py-4 font-semibold">{student.fullName}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-secondary">{student.department.name}</td>
+                  <tr
+                    key={student.id}
+                    className="hover:bg-surface-2/40 cursor-pointer transition duration-150"
+                    onClick={() => navigate(`/students/${student.id}`)}
+                  >
+                    <td className="px-6 py-4 font-mono font-semibold text-xs text-text-primary">{student.rollNumber}</td>
+                    <td className="px-6 py-4 font-semibold text-text-primary">{student.fullName}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department.name}</td>
                     <td className="px-6 py-4 text-xs font-medium">{student.gender}</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.hscPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage}%</td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <StatusBadge status={student.placementStatus} />
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        to={`/students/${student.id}`}
-                        className="text-xs font-bold text-primary hover:text-primary-dark hover:underline"
-                      >
-                        Inspect View
-                      </Link>
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2 justify-end items-center">
+                        <Link
+                          to={`/students/${student.id}`}
+                          className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded hover:text-primary transition"
+                          title="View Profile"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Link>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => handleOpenEdit(student)}
+                              className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded hover:text-primary transition cursor-pointer"
+                              title="Edit Student"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            {student.placementStatus !== 'TERMINATED' ? (
+                              <button
+                                onClick={() => {
+                                  setTerminatingStudentId(student.id);
+                                  setTerminateReason('');
+                                  setTerminateOpen(true);
+                                }}
+                                className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-error hover:bg-error/10 transition cursor-pointer"
+                                title="Terminate Eligibility"
+                              >
+                                <XOctagon className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setRevokingStudentId(student.id);
+                                  setRevokeOpen(true);
+                                }}
+                                className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-success hover:bg-success/10 transition cursor-pointer"
+                                title="Revoke Termination"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setDeletingStudentId(student.id);
+                                setDeleteOpen(true);
+                              }}
+                              className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-error hover:bg-error/10 transition cursor-pointer"
+                              title="Delete Student"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -194,22 +461,22 @@ export default function StudentsPage() {
 
         {/* Pagination controls */}
         {total > 10 && (
-          <div className="px-6 py-4 border-t border-border bg-slate-50/50 flex justify-between items-center text-xs">
-            <span className="text-secondary font-medium">
+          <div className="px-6 py-4 border-t border-border-primary bg-background-tertiary flex justify-between items-center text-xs">
+            <span className="text-text-muted font-medium">
               Showing {students.length} of {total} records
             </span>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-border rounded-lg bg-surface disabled:opacity-50 text-xs font-semibold hover:bg-slate-100 transition"
+                className="px-3 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-50 text-text-secondary text-xs font-semibold hover:bg-surface-elevated transition"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page * 10 >= total}
-                className="px-3 py-1.5 border border-border rounded-lg bg-surface disabled:opacity-50 text-xs font-semibold hover:bg-slate-100 transition"
+                className="px-3 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-50 text-text-secondary text-xs font-semibold hover:bg-surface-elevated transition"
               >
                 Next
               </button>
@@ -220,17 +487,17 @@ export default function StudentsPage() {
 
       {/* Spreadsheet Import Modal/Slide-out */}
       {importOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center">
-          <div className="bg-surface max-w-xl w-full rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-background/80 flex justify-center items-center">
+          <div className="bg-surface-1 max-w-xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+
             {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-border bg-slate-50/50">
-              <h3 className="font-extrabold text-text flex items-center gap-2">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary bg-surface-2">
+              <h3 className="font-extrabold text-text-primary flex items-center gap-2 text-sm">
                 <FileSpreadsheet className="w-5 h-5 text-primary" />
                 <span>Import Student Records (Excel/CSV)</span>
               </h3>
-              <button onClick={() => setImportOpen(false)} className="p-1 hover:bg-slate-200 rounded">
-                <X className="w-5 h-5 text-secondary" />
+              <button onClick={() => setImportOpen(false)} className="p-1 hover:bg-surface-elevated rounded">
+                <X className="w-5 h-5 text-text-muted" />
               </button>
             </div>
 
@@ -238,32 +505,32 @@ export default function StudentsPage() {
             <div className="p-6 space-y-6">
               {!importResult ? (
                 <form onSubmit={handleImportSubmit} className="space-y-4">
-                  <div className="border-2 border-dashed border-border hover:border-slate-400 p-8 rounded-xl text-center space-y-3 cursor-pointer relative bg-slate-50/50">
+                  <div className="border-2 border-dashed border-border-primary hover:border-border-hover p-8 rounded text-center space-y-3 cursor-pointer relative bg-background-secondary">
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       className="absolute inset-0 opacity-0 cursor-pointer"
                       onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                     />
-                    <Upload className="w-8 h-8 text-secondary mx-auto" />
-                    <div className="text-xs font-bold text-text">
+                    <Upload className="w-8 h-8 text-text-muted mx-auto" />
+                    <div className="text-xs font-bold text-text-primary">
                       {importFile ? importFile.name : 'Select or drag spreadsheet file here'}
                     </div>
-                    <div className="text-[10px] text-secondary">Supports Excel workbook formats (.xlsx) and CSV files up to 5MB.</div>
+                    <div className="text-[10px] text-text-muted">Supports Excel workbook formats (.xlsx) and CSV files up to 5MB.</div>
                   </div>
 
-                  <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                  <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
                     <button
                       type="button"
                       onClick={() => setImportOpen(false)}
-                      className="px-4 py-2 border border-border text-xs font-semibold rounded-lg hover:bg-slate-100 transition"
+                      className="px-4 py-2 border border-border-primary text-xs font-semibold rounded hover:bg-surface-2 transition text-text-secondary"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={!importFile || importLoading}
-                      className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-2 transition"
+                      className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-xs font-semibold rounded flex items-center gap-2 transition cursor-pointer"
                     >
                       {importLoading ? (
                         <>
@@ -280,19 +547,19 @@ export default function StudentsPage() {
                 /* Import Results breakdown */
                 <div className="space-y-6">
                   <div className="grid grid-cols-4 gap-4 text-center">
-                    <div className="bg-slate-50 p-3 rounded-lg border border-border">
-                      <div className="text-lg font-extrabold text-text">{importResult.totalRows}</div>
-                      <div className="text-[10px] font-bold text-secondary uppercase mt-0.5">Total Checked</div>
+                    <div className="bg-background-secondary p-3 rounded border border-border-primary">
+                      <div className="text-lg font-extrabold text-text-primary">{importResult.totalRows}</div>
+                      <div className="text-[10px] font-bold text-text-muted uppercase mt-0.5">Total Checked</div>
                     </div>
-                    <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                    <div className="bg-success/10 p-3 rounded border border-success/20">
                       <div className="text-lg font-extrabold text-success">{importResult.successCount}</div>
                       <div className="text-[10px] font-bold text-success uppercase mt-0.5">Success</div>
                     </div>
-                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
-                      <div className="text-lg font-extrabold text-amber-600">{importResult.duplicates.length}</div>
-                      <div className="text-[10px] font-bold text-amber-600 uppercase mt-0.5">Duplicates</div>
+                    <div className="bg-warning/10 p-3 rounded border border-warning/20">
+                      <div className="text-lg font-extrabold text-warning">{importResult.duplicates.length}</div>
+                      <div className="text-[10px] font-bold text-warning uppercase mt-0.5">Duplicates</div>
                     </div>
-                    <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                    <div className="bg-danger/10 p-3 rounded border border-danger/20">
                       <div className="text-lg font-extrabold text-danger">{importResult.errors.length}</div>
                       <div className="text-[10px] font-bold text-danger uppercase mt-0.5">Errors</div>
                     </div>
@@ -300,17 +567,17 @@ export default function StudentsPage() {
 
                   {/* Errors Detail list */}
                   {importResult.errors.length > 0 && (
-                    <div className="border border-red-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                      <div className="bg-red-50 px-4 py-2 border-b border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
+                    <div className="border border-danger/20 rounded overflow-hidden max-h-48 overflow-y-auto">
+                      <div className="bg-danger/10 px-4 py-2 border-b border-danger/20 text-xs font-bold text-danger flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
                         <span>Validation Failures (Row Breakdown)</span>
                       </div>
                       <table className="w-full text-left border-collapse text-xs">
-                        <tbody className="divide-y divide-red-100">
+                        <tbody className="divide-y divide-border-primary bg-background-secondary">
                           {importResult.errors.map((err: any, idx: number) => (
-                            <tr key={idx} className="bg-red-50/20">
-                              <td className="px-4 py-2.5 font-bold text-red-700 w-16">Row {err.row}</td>
-                              <td className="px-4 py-2.5 text-secondary">{err.error}</td>
+                            <tr key={idx}>
+                              <td className="px-4 py-2.5 font-bold text-danger w-16">Row {err.row}</td>
+                              <td className="px-4 py-2.5 text-text-secondary">{err.error}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -318,10 +585,10 @@ export default function StudentsPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-end pt-4 border-t border-border">
+                  <div className="flex justify-end pt-4 border-t border-border-primary">
                     <button
                       onClick={() => setImportOpen(false)}
-                      className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition"
+                      className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded hover:bg-primary/90 transition cursor-pointer"
                     >
                       Complete
                     </button>
@@ -332,6 +599,269 @@ export default function StudentsPage() {
           </div>
         </div>
       )}
+      {/* Edit Student Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-black/60 backdrop-blur-sm flex justify-center items-center animate-in fade-in duration-200">
+          <div className="bg-surface-1 max-w-2xl w-full rounded border border-border-primary shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary bg-surface-2">
+              <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider">
+                Edit Candidate Details
+              </h3>
+              <button
+                onClick={() => setEditOpen(false)}
+                className="p-1 hover:bg-surface-elevated rounded text-text-secondary hover:text-text-primary transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div className="border-b border-border-primary pb-2 mb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Personal Info</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Department</label>
+                  <select
+                    required
+                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+                    value={editDeptId}
+                    onChange={(e) => setEditDeptId(e.target.value)}
+                  >
+                    <option value="">Select Department</option>
+                    {depts.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Gender</label>
+                  <select
+                    required
+                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+                    value={editGender}
+                    onChange={(e) => setEditGender(e.target.value)}
+                  >
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Hostel Status</label>
+                  <select
+                    required
+                    className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+                    value={editHostelStatus}
+                    onChange={(e) => setEditHostelStatus(e.target.value)}
+                  >
+                    <option value="HOSTEL">Hostel</option>
+                    <option value="DAY_SCHOLAR">Day Scholar</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Graduation Date</label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editGraduationDate}
+                    onChange={(e) => setEditGraduationDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Personal Email</label>
+                  <input
+                    type="email"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editPersonalEmail}
+                    onChange={(e) => setEditPersonalEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">College Email</label>
+                  <input
+                    type="email"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editCollegeEmail}
+                    onChange={(e) => setEditCollegeEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Mobile Number</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editMobileNumber}
+                    onChange={(e) => setEditMobileNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="border-b border-border-primary pb-2 pt-2 mb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Academics (%)</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">SSLC (10th)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editSslc}
+                    onChange={(e) => setEditSslc(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">HSC (12th)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editHsc}
+                    onChange={(e) => setEditHsc(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">UG degree</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editUg}
+                    onChange={(e) => setEditUg(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">PG degree</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editPg}
+                    onChange={(e) => setEditPg(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="border-b border-border-primary pb-2 pt-2 mb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Social Links</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">GitHub URL</label>
+                  <input
+                    type="url"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editGithub}
+                    onChange={(e) => setEditGithub(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">LinkedIn URL</label>
+                  <input
+                    type="url"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editLinkedin}
+                    onChange={(e) => setEditLinkedin(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Portfolio URL</label>
+                  <input
+                    type="url"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                    value={editPortfolio}
+                    onChange={(e) => setEditPortfolio(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={editLoading}
+                className="w-full h-10 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs rounded transition flex items-center justify-center gap-2 glow-primary border-0 cursor-pointer"
+              >
+                {editLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>Save Candidate Changes</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteOpen}
+        title="Delete Candidate Record"
+        message="Are you sure you want to permanently delete this candidate's profile? This operation is irreversible and will delete all their records, resumes, and ATS scores."
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteOpen(false)}
+        confirmText="Delete Record"
+        type="danger"
+        loading={deleteLoading}
+      />
+
+      {/* Terminate Confirmation */}
+      <ConfirmDialog
+        isOpen={terminateOpen}
+        title="Terminate Student Placement Eligibility"
+        message="Are you sure you want to terminate this student from participating in placement drives? The student will be set as ineligible, and recruiters will be blocked from matching their resume."
+        onConfirm={handleTerminateConfirm}
+        onCancel={() => setTerminateOpen(false)}
+        confirmText="Terminate Eligibility"
+        type="danger"
+        loading={terminateLoading}
+      >
+        <div className="mt-4 px-6 pb-2">
+          <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Termination Reason</label>
+          <textarea
+            className="w-full mt-1.5 p-3 border border-border-primary rounded text-xs outline-none focus:border-danger transition h-20 resize-none bg-background-secondary text-text-primary"
+            placeholder="Specify reason for termination (required)..."
+            value={terminateReason}
+            onChange={(e) => setTerminateReason(e.target.value)}
+          />
+        </div>
+      </ConfirmDialog>
+
+      {/* Revoke Confirmation */}
+      <ConfirmDialog
+        isOpen={revokeOpen}
+        title="Revoke Placement Termination"
+        message="Are you sure you want to revoke this student's placement termination and reinstate their eligibility status? Reinstated students will be visible on recruiter matching boards."
+        onConfirm={handleRevokeConfirm}
+        onCancel={() => setRevokeOpen(false)}
+        confirmText="Revoke & Reinstate"
+        type="info"
+        loading={revokeLoading}
+      />
     </div>
   );
 }

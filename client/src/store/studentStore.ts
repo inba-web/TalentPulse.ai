@@ -35,6 +35,8 @@ interface StudentState {
     search?: string;
     departmentId?: string;
     placementStatus?: string;
+    gender?: string;
+    hostelStatus?: string;
     page?: number;
     limit?: number;
   }) => Promise<void>;
@@ -61,6 +63,8 @@ export const useStudentStore = create<StudentState>((set) => ({
       if (filters.search) params.append('search', filters.search);
       if (filters.departmentId) params.append('departmentId', filters.departmentId);
       if (filters.placementStatus) params.append('placementStatus', filters.placementStatus);
+      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 

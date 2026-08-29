@@ -18,4 +18,23 @@ export class ReportsController {
       data,
     });
   });
+
+  public static updatePlacement = catchAsync(async (req: Request, res: Response) => {
+    const { historyId } = req.params;
+    const { ctc, date } = req.body;
+    const updated = await ReportsService.updatePlacement(historyId, { ctc, placedAt: date });
+    res.status(200).json({
+      success: true,
+      data: updated,
+    });
+  });
+
+  public static deletePlacement = catchAsync(async (req: Request, res: Response) => {
+    const { historyId } = req.params;
+    await ReportsService.deletePlacement(historyId);
+    res.status(200).json({
+      success: true,
+      message: 'Placement offer revoked successfully.',
+    });
+  });
 }

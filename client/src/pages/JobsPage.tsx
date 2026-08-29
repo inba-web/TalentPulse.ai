@@ -3,7 +3,7 @@ import { useJobStore } from '../store/jobStore';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
 import { useAuthStore } from '../store/authStore';
-import { Plus, Search, FileText, ArrowRight, Check, X, Loader2, Upload, HelpCircle, Edit } from 'lucide-react';
+import { Plus, Search, FileText, ArrowRight, Check, X, Loader2, Upload, HelpCircle, Edit, RefreshCw } from 'lucide-react';
 
 export default function JobsPage() {
   const { jobs, fetchJobs, createJob, forwardJob, reviewJob, extractJd } = useJobStore();
@@ -13,6 +13,18 @@ export default function JobsPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchJobs({ search, status, page, limit: 10 });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Drawer control
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -132,14 +144,14 @@ export default function JobsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-text tracking-tight">Placement Job Board</h1>
-          <p className="text-sm text-secondary font-medium">Author specifications, extract specs via AI, and manage approvals.</p>
+          <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Jobs</h1>
+          <p className="text-xs text-text-muted mt-1">Author specifications, match candidates, and track job opening approvals.</p>
         </div>
         
         {hasPermission('JOB_CREATE') && (
           <button
             onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg shadow shadow-primary/10 transition cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Create job opening</span>
@@ -148,14 +160,14 @@ export default function JobsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-surface p-4 rounded-xl border border-border shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-surface-1 p-4 rounded border border-border-primary flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:max-w-xs">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-secondary">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-text-muted">
             <Search className="w-4 h-4" />
           </span>
           <input
             type="text"
-            className="w-full h-10 pl-9 pr-4 border border-border rounded-lg text-xs outline-none bg-background focus:border-primary transition"
+            className="w-full h-10 pl-9 pr-4 border border-border-primary rounded text-xs outline-none bg-background-secondary focus:border-primary text-text-primary transition"
             placeholder="Search job title, company name..."
             value={search}
             onChange={(e) => {
@@ -167,7 +179,7 @@ export default function JobsPage() {
 
         <div className="flex items-center gap-4 w-full md:w-auto">
           <select
-            className="h-10 border border-border rounded-lg px-3 text-xs bg-background text-text focus:border-primary outline-none transition"
+            className="h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
@@ -184,11 +196,11 @@ export default function JobsPage() {
       </div>
 
       {/* Jobs list table */}
-      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-surface-1 rounded border border-border-primary overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-border text-[11px] font-bold text-secondary uppercase tracking-wider">
+              <tr className="bg-background-tertiary border-b border-border-primary text-[11px] font-bold text-text-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Job Title</th>
                 <th className="px-6 py-4">Company</th>
                 <th className="px-6 py-4">Location</th>
@@ -197,18 +209,18 @@ export default function JobsPage() {
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-sm text-text">
+            <tbody className="divide-y divide-border-primary text-sm text-text-secondary">
               {jobs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-secondary font-medium">
+                  <td colSpan={6} className="text-center py-12 text-text-muted font-medium">
                     No placement job openings registered.
                   </td>
                 </tr>
               ) : (
                 jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50/30 transition duration-150">
-                    <td className="px-6 py-4 font-semibold">{job.jobTitle}</td>
-                    <td className="px-6 py-4 text-xs font-semibold text-secondary">{job.company.name}</td>
+                  <tr key={job.id} className="hover:bg-surface-2/40 transition duration-150">
+                    <td className="px-6 py-4 font-semibold text-text-primary">{job.jobTitle}</td>
+                    <td className="px-6 py-4 text-xs font-semibold text-text-muted">{job.company.name}</td>
                     <td className="px-6 py-4 text-xs font-medium">{job.location}</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{job.ctc} LPA</td>
                     <td className="px-6 py-4 text-center">
@@ -219,7 +231,7 @@ export default function JobsPage() {
                       {job.status === 'DRAFT' && isLead && (
                         <button
                           onClick={() => handleForward(job.id)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline hover:text-primary-dark cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline hover:text-primary-hover cursor-pointer"
                         >
                           <span>Forward to Admin</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -236,7 +248,7 @@ export default function JobsPage() {
                               setReviewComment('');
                               setReviewOpen(true);
                             }}
-                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            className="bg-success/10 text-success hover:bg-success/20 border border-success/20 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                           >
                             <Check className="w-3.5 h-3.5" />
                             <span>Approve</span>
@@ -248,7 +260,7 @@ export default function JobsPage() {
                               setReviewComment('');
                               setReviewOpen(true);
                             }}
-                            className="bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            className="bg-error/10 text-error hover:bg-error/20 border border-error/20 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                           >
                             <X className="w-3.5 h-3.5" />
                             <span>Reject</span>
@@ -433,7 +445,7 @@ export default function JobsPage() {
                   type="submit"
                   disabled={reviewLoading}
                   className={`px-4 py-2 text-white text-xs font-semibold rounded-lg transition ${
-                    approveAction ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                    approveAction ? 'bg-success hover:bg-success-hover' : 'bg-error hover:bg-error-hover'
                   }`}
                 >
                   {reviewLoading ? 'Reviewing...' : approveAction ? 'Approve & Publish' : 'Reject Job'}

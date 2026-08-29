@@ -15,6 +15,7 @@ const atsRouter = Router();
 atsRouter.use(requireAuth);
 
 atsRouter.post('/resume/analyze', hasPermission('ATS_ANALYSIS'), upload.single('file'), AtsController.analyzeResume);
+atsRouter.post('/jd/analyze', hasPermission('ATS_ANALYSIS'), upload.single('file'), AtsController.analyzeJdForCandidates);
 atsRouter.get('/jobs/:id/candidates', hasPermission('RECRUITER_READ'), AtsController.getJobCandidates);
 
 export default atsRouter;

@@ -18,6 +18,7 @@ interface RecruiterState {
 
   fetchCandidatesForJob: (jobId: string) => Promise<void>;
   analyzeCandidateResume: (studentId: string, jobId: string, file?: File) => Promise<any>;
+  analyzeCustomJd: (jdText: string, file?: File) => Promise<Candidate[]>;
 }
 
 export const useRecruiterStore = create<RecruiterState>((set) => ({
@@ -63,6 +64,36 @@ export const useRecruiterStore = create<RecruiterState>((set) => ({
       set({ loading: false });
       if (result.success) return result.data.analysis;
       throw new Error(result.error?.message || 'Resume analysis failed');
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  analyzeCustomJd: async (jdText, file) => {
+    set({ loading: true, error: null, candidates: [] });
+    try {
+      const formData = new FormData();
+      formData.append('jdText', jdText);
+      if (file) {
+        formData.append('file', file);
+      }
+
+      const response = await fetch('/api/ats/jd/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        set({
+          candidates: result.data.candidates,
+          loading: false,
+        });
+        return result.data.candidates;
+      } else {
+        throw new Error(result.error?.message || 'Failed to analyze Job Description');
+      }
     } catch (error: any) {
       set({ error: error.message, loading: false });
       throw error;

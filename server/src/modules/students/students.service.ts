@@ -313,32 +313,163 @@ export class StudentService {
     const errors: { row: number; error: string }[] = [];
     const duplicates: string[] = [];
 
-    // Parse whitelisted domains or configurations if needed, here we validate via schema
+    // Fetch all departments to resolve IDs
+    const departments = await prisma.department.findMany();
+
+    const getValue = (row: any, keys: string[]): string => {
+      for (const key of keys) {
+        if (row[key] !== undefined && row[key] !== null) {
+          return String(row[key]).trim();
+        }
+        const normalizedKey = key.toLowerCase().replace(/[\s_\-%/]/g, '');
+        for (const actualKey of Object.keys(row)) {
+          const normalizedActual = actualKey.toLowerCase().replace(/[\s_\-%/]/g, '');
+          if (normalizedActual === normalizedKey && row[actualKey] !== undefined && row[actualKey] !== null) {
+            return String(row[actualKey]).trim();
+          }
+        }
+      }
+      return '';
+    };
+
+    const normalizeDeptStr = (s: string): string => {
+      return s.toLowerCase().replace(/and/g, '&').replace(/[^a-z0-9&]/g, '');
+    };
+
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       const rowNum = index + 2; // spreadsheet header is row 1
 
+      const roll = getValue(row, ['rollNumber', 'roll Number', 'roll No', 'roll_number', 'rollno', 'register number', 'reg no']);
+      const name = getValue(row, ['fullName', 'full Name', 'name', 'full_name', 'student name', 'candidate name']);
+
+      // Skip completely empty spreadsheet rows
+      const hasAnyData = Object.values(row).some(val => val !== undefined && val !== null && String(val).trim() !== '');
+      if (!hasAnyData) {
+        continue;
+      }
+
+      if (!roll || !name) {
+        errors.push({
+          row: rowNum,
+          error: `Missing required header/fields. Roll Number: "${roll || 'MISSING'}", Name: "${name || 'MISSING'}". Ensure your spreadsheet has column headers like 'Roll Number' and 'Full Name'.`,
+        });
+        continue;
+      }
+
       try {
+        // Resolve department ID from code or name
+        const deptInput = getValue(row, ['department', 'dept', 'departmentId', 'department_id', 'departmentCode', 'department code', 'branch']);
+        let resolvedDeptId = '';
+        if (deptInput) {
+          const normInput = normalizeDeptStr(deptInput);
+          let matchedDept = departments.find(
+            (d) =>
+              normalizeDeptStr(d.code) === normInput ||
+              normalizeDeptStr(d.name) === normInput ||
+              normalizeDeptStr(d.name).includes(normInput) ||
+              normInput.includes(normalizeDeptStr(d.name))
+          );
+          if (!matchedDept) {
+            // Dynamically create the department
+            const code = deptInput.length <= 6 ? deptInput.toUpperCase() : deptInput.split(' ').map(w => w[0]).join('').toUpperCase();
+            matchedDept = await prisma.department.create({
+              data: {
+                code: code || 'DEPT',
+                name: deptInput,
+              }
+            });
+            departments.push(matchedDept);
+          }
+          resolvedDeptId = matchedDept.id;
+        }
+
+        if (!resolvedDeptId) {
+          // Default to CSE if not resolved
+          let matchedDept = departments.find(d => d.code === 'CSE');
+          if (!matchedDept) {
+            matchedDept = await prisma.department.create({
+              data: {
+                code: 'CSE',
+                name: 'Computer Science & Engineering',
+              }
+            });
+            departments.push(matchedDept);
+          }
+          resolvedDeptId = matchedDept.id;
+        }
+
+        // Normalize gender
+        let genderInput = getValue(row, ['gender', 'sex']).toUpperCase();
+        if (genderInput === 'M' || genderInput.startsWith('MALE') || genderInput.startsWith('M')) {
+          genderInput = 'MALE';
+        } else if (genderInput === 'F' || genderInput.startsWith('FEMALE') || genderInput.startsWith('F')) {
+          genderInput = 'FEMALE';
+        } else {
+          genderInput = 'OTHER';
+        }
+
+        // Normalize hostel status
+        let hostelInput = getValue(row, ['hostelStatus', 'hostel Status', 'hostel', 'residency', 'hostel_status', 'hostel/day scholar', 'hostel/dayscholar', 'hostel / day scholar']).toUpperCase();
+        if (hostelInput.startsWith('H') || hostelInput.includes('HOSTEL')) {
+          hostelInput = 'HOSTEL';
+        } else {
+          hostelInput = 'DAY_SCHOLAR'; // Default to DAY_SCHOLAR
+        }
+
+        // Normalize graduation date (if year only, append month/day)
+        let gradDateVal = getValue(row, ['graduationDate', 'graduation Date', 'graduation_date', 'passing year', 'year of passing', 'grad date']) || '2027-05-31';
+        if (/^\d{4}$/.test(gradDateVal)) {
+          gradDateVal = `${gradDateVal}-05-31`;
+        }
+
+        // Clean and normalize emails
+        let pEmail = getValue(row, ['personalEmail', 'personal Email', 'personal_email', 'email', 'personal mail', 'personal email id', 'email id', 'emailaddress']);
+        let cEmail = getValue(row, ['collegeEmail', 'college Email', 'college_email', 'college mail', 'college email address', 'college email id', 'official email', 'official email id', 'institute email']);
+        
+        if (!pEmail && cEmail) pEmail = cEmail;
+        if (!cEmail) cEmail = pEmail || `${roll || Date.now()}@talentpulse.ai`;
+        if (!pEmail) pEmail = cEmail;
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(pEmail)) pEmail = `${roll || Date.now()}@talentpulse.ai`;
+        if (!emailRegex.test(cEmail)) cEmail = `${roll || Date.now()}@talentpulse.ai`;
+
+        // Clean and normalize mobile number
+        let mobile = getValue(row, ['mobileNumber', 'mobile Number', 'mobile_number', 'mobile', 'phone', 'contact', 'phone number', 'mobile no', 'mobile number', 'contact no', 'contact number']);
+        mobile = mobile.replace(/\D/g, '');
+        if (mobile.startsWith('91') && mobile.length === 12) {
+          mobile = mobile.substring(2);
+        }
+        if (mobile.startsWith('0') && mobile.length === 11) {
+          mobile = mobile.substring(1);
+        }
+        if (!/^[6-9]\d{9}$/.test(mobile)) {
+          const cleanRoll = (roll || '').replace(/\D/g, '');
+          const suffix = (cleanRoll + '000000000').substring(0, 9);
+          mobile = '9' + suffix;
+        }
+
         // Parse row values matching createStudentSchema (mapping column headers)
         const parsed = createStudentSchema.parse({
-          rollNumber: String(row.rollNumber || ''),
-          fullName: String(row.fullName || ''),
-          departmentId: String(row.departmentId || ''),
-          gender: String(row.gender || '').toUpperCase(),
-          hostelStatus: String(row.hostelStatus || '').toUpperCase().replace(' ', '_'),
-          personalEmail: String(row.personalEmail || ''),
-          collegeEmail: String(row.collegeEmail || ''),
-          mobileNumber: String(row.mobileNumber || ''),
-          graduationDate: String(row.graduationDate || '2027-05-31'),
-          sslcPercentage: Number(row.sslcPercentage ?? 0),
-          hscPercentage: Number(row.hscPercentage ?? 0),
-          ugPercentage: Number(row.ugPercentage ?? 0),
-          pgPercentage: row.pgPercentage ? Number(row.pgPercentage) : null,
-          githubUrl: row.githubUrl || null,
-          linkedinUrl: row.linkedinUrl || null,
-          portfolioUrl: row.portfolioUrl || null,
-          studentPhotoUrl: row.studentPhotoUrl || null,
-          selfIntroVideoUrl: row.selfIntroVideoUrl || null,
+          rollNumber: roll || `TP-${Date.now()}-${index}`,
+          fullName: name || 'Candidate',
+          departmentId: resolvedDeptId,
+          gender: genderInput,
+          hostelStatus: hostelInput,
+          personalEmail: pEmail,
+          collegeEmail: cEmail,
+          mobileNumber: mobile,
+          graduationDate: gradDateVal,
+          sslcPercentage: Number(getValue(row, ['sslcPercentage', 'sslc Percentage', 'sslc', '10th', '10th percentage', '10th %', 'sslc %']) || 0),
+          hscPercentage: Number(getValue(row, ['hscPercentage', 'hsc Percentage', 'hsc', '12th', '12th percentage', '12th %', 'hsc %']) || 0),
+          ugPercentage: Number(getValue(row, ['ugPercentage', 'ug Percentage', 'ug', 'ug %', 'ug cgpa', 'ug percentage', 'cgpa']) || 0),
+          pgPercentage: getValue(row, ['pgPercentage', 'pg Percentage', 'pg', 'pg %', 'pg cgpa', 'pg percentage']) ? Number(getValue(row, ['pgPercentage', 'pg Percentage', 'pg', 'pg %', 'pg cgpa', 'pg percentage'])) : null,
+          githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url']) || null,
+          linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url']) || null,
+          portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null,
+          studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image']) || null,
+          selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
         });
 
         // Unique checks
@@ -357,16 +488,33 @@ export class StudentService {
         }
 
         // Insert
-        await this.createStudent(parsed);
+        const student = await this.createStudent(parsed);
+
+        // Parse and create resume document if present
+        const resumeLink = getValue(row, ['resumeUrl', 'resumeLink', 'resume', 'googleDriveLink', 'driveLink', 'resumeDriveLink', 'driveUrl', 'resumeUrlLink', 'resumeLinkUrl']);
+        if (resumeLink && student) {
+          await prisma.studentDocument.create({
+            data: {
+              studentId: student.id,
+              documentType: 'RESUME',
+              fileUrl: resumeLink,
+              fileKey: `imported-${Date.now()}-${index}`,
+              mimeType: 'application/pdf',
+              fileSize: 0,
+              isLatestResume: true,
+            },
+          });
+        }
+
         successCount++;
       } catch (error: any) {
         if (error instanceof z.ZodError) {
           errors.push({
             row: rowNum,
             error: error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
-          } as any);
+          });
         } else {
-          errors.push({ row: rowNum, error: error.message } as any);
+          errors.push({ row: rowNum, error: error.message });
         }
       }
     }

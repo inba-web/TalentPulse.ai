@@ -27,5 +27,8 @@ authRouter.post('/forgot-password', authLimiter, AuthController.forgotPassword);
 authRouter.post('/reset-password', authLimiter, AuthController.resetPassword);
 authRouter.post('/change-password', requireAuth, AuthController.changePassword);
 authRouter.get('/me', requireAuth, AuthController.me);
+authRouter.patch('/me', requireAuth, AuthController.updateMe);
+authRouter.post('/create-user', requireAuth, AuthController.createUser);
+authRouter.get('/users', requireAuth, AuthController.listUsers);
 
 export default authRouter;

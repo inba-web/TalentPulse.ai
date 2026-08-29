@@ -40,8 +40,8 @@ function ParticleBackground() {
       <Points ref={ref} positions={positions} stride={3} frustumCulled={false}>
         <PointMaterial
           transparent
-          color="#06B6D4"
-          size={0.015}
+          color="#22C55E"
+          size={0.012}
           sizeAttenuation={true}
           depthWrite={false}
         />
@@ -61,7 +61,9 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    if (!trimmedEmail || !trimmedPassword) {
       setErrorMsg('Please enter both your email address and password.');
       return;
     }
@@ -70,7 +72,7 @@ export default function LoginPage() {
     setErrorMsg('');
 
     try {
-      await login(email, password);
+      await login(trimmedEmail, trimmedPassword);
       navigate('/dashboard');
     } catch (err: any) {
       setErrorMsg(err.message || 'Login failed. Please verify your credentials.');
@@ -79,13 +81,19 @@ export default function LoginPage() {
     }
   };
 
+  const fillCredentials = (fillEmail: string) => {
+    setEmail(fillEmail);
+    setPassword('Password123!');
+    setErrorMsg('');
+  };
+
   return (
-    <div className="relative min-h-screen bg-slate-950 flex items-center justify-center overflow-hidden px-4">
+    <div className="relative min-h-screen bg-background flex items-center justify-center overflow-hidden px-4">
       
       {/* 3D WebGL Canvas Layer (Falls back to CSS animations if WebGL fails) */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={
-          <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900 to-blue-950 opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-background via-background-secondary to-background-tertiary opacity-80" />
         }>
           <Canvas camera={{ position: [0, 0, 1.2] }}>
             <ParticleBackground />
@@ -94,24 +102,24 @@ export default function LoginPage() {
       </div>
 
       {/* Decorative gradient overlay */}
-      <div className="absolute inset-0 bg-slate-950/40 pointer-events-none z-10" />
+      <div className="absolute inset-0 bg-background/20 pointer-events-none z-10" />
 
-      {/* Glassmorphic Login Form Wrapper */}
-      <div className="relative w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8 z-20 overflow-hidden flex flex-col items-center">
+      {/* Solid Enterprise Login Form Wrapper */}
+      <div className="relative w-full max-w-md bg-surface-1 border border-border-primary rounded p-8 z-20 overflow-hidden flex flex-col items-center shadow-lg">
         
         {/* Brand header */}
         <div className="flex flex-col items-center gap-3.5 mb-8">
-          <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 shadow-inner">
+          <div className="p-3 bg-gradient-primary rounded glow-primary border border-border-primary/20">
             <img src="/assets/talentpulse_logo.png" className="w-12 h-12 object-contain" alt="Logo" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>
-            <p className="text-xs text-slate-400 font-semibold mt-1 uppercase tracking-widest">Placement Intelligence Platform</p>
+            <h1 className="text-2xl font-extrabold text-text-primary tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>
+            <p className="text-[10px] text-text-muted font-bold mt-1.5 uppercase tracking-widest">Talent & Recruitment Platform</p>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="w-full bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg flex gap-2.5 items-start text-xs font-semibold mb-6">
+          <div className="w-full bg-error/10 border border-error/20 text-error p-3 rounded flex gap-2.5 items-start text-xs font-semibold mb-6">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
@@ -120,15 +128,15 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="w-full space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Email Address</label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-disabled">
                 <Mail className="w-4.5 h-4.5" />
               </span>
               <input
                 type="email"
                 required
-                className="w-full h-11 pl-10 pr-4 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-200 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
+                className="w-full h-11 pl-10 pr-4 bg-background-tertiary border border-border-primary rounded text-text-secondary text-sm focus:border-primary outline-none transition"
                 placeholder="you@college.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -138,23 +146,23 @@ export default function LoginPage() {
 
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Password</label>
             </div>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-disabled">
                 <Lock className="w-4.5 h-4.5" />
               </span>
               <input
                 type={showPassword ? "text" : "password"}
                 required
-                className="w-full h-11 pl-10 pr-10 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-200 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
+                className="w-full h-11 pl-10 pr-10 bg-background-tertiary border border-border-primary rounded text-text-secondary text-sm focus:border-primary outline-none transition"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-muted hover:text-text-primary"
                 onClick={() => setShowPassword((prev) => !prev)}
               >
                 {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
@@ -165,14 +173,40 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full h-11 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-semibold text-sm rounded-lg shadow-lg shadow-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/40 transition duration-150 mt-2"
+            className="w-full h-11 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-semibold text-sm rounded transition duration-150 mt-2 glow-primary cursor-pointer border-0"
           >
             {submitting ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
+
+        {/* Credentials Info Helper Box */}
+        <div className="w-full mt-6 p-4 rounded border border-primary/20 bg-primary/5 text-[11px] space-y-2 text-text-secondary">
+          <div className="font-bold text-primary uppercase tracking-wider text-[10px]">Demo User Credentials (RBAC) · Click to auto-fill</div>
+          <div className="space-y-1.5 border-t border-border-primary pt-2">
+            {[
+              { label: 'Admin User', email: 'admin@talentpulse.ai' },
+              { label: 'Manager', email: 'manager@talentpulse.ai' },
+              { label: 'Lead User', email: 'lead@talentpulse.ai' },
+            ].map(({ label, email: demoEmail }) => (
+              <button
+                key={demoEmail}
+                type="button"
+                onClick={() => fillCredentials(demoEmail)}
+                className="w-full flex justify-between items-center px-2.5 py-1.5 rounded hover:bg-primary/10 transition cursor-pointer group border-0 bg-transparent"
+              >
+                <span className="font-sans font-semibold text-text-muted group-hover:text-text-secondary">{label}:</span>
+                <span className="font-mono text-xs text-text-secondary group-hover:text-primary transition">{demoEmail}</span>
+              </button>
+            ))}
+            <div className="flex justify-between items-center px-2.5 py-1 border-t border-border-primary/50 mt-1">
+              <span className="font-sans font-semibold text-text-muted">Password:</span>
+              <span className="text-primary font-bold font-mono">Password123!</span>
+            </div>
+          </div>
+        </div>
         
         {/* Footer info */}
-        <div className="mt-8 text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+        <div className="mt-6 text-center text-[10px] text-text-disabled font-semibold uppercase tracking-wider">
           Authorized Academic Portal &bull; TalentPulse.ai
         </div>
       </div>
