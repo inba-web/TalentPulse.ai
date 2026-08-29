@@ -160,6 +160,7 @@ model Student {
   terminations          StudentTermination[]
   placementHistory      StudentPlacementHistory[]
   atsAnalyses           ATSAnalysis[]
+  driveRegistrations    DriveStudent[]
 
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -295,6 +296,7 @@ model Job {
   approval              JobApproval?
   atsAnalyses           ATSAnalysis[]
   placements            StudentPlacementHistory[]
+  driveStudents         DriveStudent[]
 
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -374,3 +376,33 @@ model AuditLog {
   @@index([actorId])
   @@index([createdAt])
 }
+
+enum DriveStudentStatus {
+  REGISTERED
+  ATTENDED
+  SHORTLISTED
+  SELECTED
+  REJECTED
+}
+
+model DriveStudent {
+  id                    String                 @id @default(uuid())
+  jobId                 String
+  job                   Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  studentId             String
+  student               Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status                DriveStudentStatus     @default(REGISTERED)
+  registeredAt          DateTime               @default(now())
+  attendedAt            DateTime?
+  shortlistedAt         DateTime?
+  selectedAt            DateTime?
+  remarks               String?                @db.Text
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@unique([jobId, studentId])
+  @@index([jobId])
+  @@index([studentId])
+  @@index([status])
+}
+

@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
 import {
   Search, Upload, Loader2, FileSpreadsheet, X, AlertCircle,
-  Edit2, Trash2, XOctagon, CheckCircle, Eye, RefreshCw, RotateCcw, Users, UserX, Undo2,
+  Edit2, Trash2, XOctagon, CheckCircle, Eye, RefreshCw, RotateCcw, Users, UserX, Undo2, Video
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -94,6 +94,7 @@ export default function StudentsPage() {
   const [editGithub, setEditGithub] = useState('');
   const [editLinkedin, setEditLinkedin] = useState('');
   const [editPortfolio, setEditPortfolio] = useState('');
+  const [editSelfIntroVideo, setEditSelfIntroVideo] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -132,6 +133,7 @@ export default function StudentsPage() {
     setEditGithub(student.links?.githubUrl || '');
     setEditLinkedin(student.links?.linkedinUrl || '');
     setEditPortfolio(student.links?.portfolioUrl || '');
+    setEditSelfIntroVideo(student.selfIntroVideoUrl || '');
     setEditOpen(true);
   };
 
@@ -156,6 +158,7 @@ export default function StudentsPage() {
         githubUrl: editGithub || null,
         linkedinUrl: editLinkedin || null,
         portfolioUrl: editPortfolio || null,
+        selfIntroVideoUrl: editSelfIntroVideo || null,
       });
       setEditOpen(false);
       fetchStudents(buildFilters(activeTab));
@@ -416,6 +419,7 @@ export default function StudentsPage() {
                 <th className="px-6 py-4 text-center">SSLC %</th>
                 <th className="px-6 py-4 text-center">HSC %</th>
                 <th className="px-6 py-4 text-center">UG %</th>
+                <th className="px-6 py-4 text-center">Self Intro Video</th>
                 {activeTab !== 'DELETED' && <th className="px-6 py-4 text-center">Status</th>}
                 {activeTab === 'DELETED' && <th className="px-6 py-4 text-center">Deleted On</th>}
                 <th className="px-6 py-4 text-right">Actions</th>
@@ -468,6 +472,22 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.hscPercentage}%</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage}%</td>
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      {(student as any).selfIntroVideoUrl ? (
+                        <a
+                          href={(student as any).selfIntroVideoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary/10 border border-primary/20 text-[11px] font-bold text-primary hover:bg-primary/20 transition cursor-pointer"
+                          title="Watch Self Intro Video"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                          <span>Watch Intro</span>
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-text-disabled font-medium">—</span>
+                      )}
+                    </td>
                     {activeTab !== 'DELETED' && (
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                         {isAdmin ? (
@@ -811,7 +831,7 @@ export default function StudentsPage() {
               <div className="border-b border-border-primary pb-2 pt-2 mb-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">Social Links</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">GitHub URL</label>
                   <input type="url" className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editGithub} onChange={(e) => setEditGithub(e.target.value)} />
@@ -823,6 +843,10 @@ export default function StudentsPage() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Portfolio URL</label>
                   <input type="url" className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition" value={editPortfolio} onChange={(e) => setEditPortfolio(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Self Intro Video URL</label>
+                  <input type="url" placeholder="https://youtube.com/watch?v=..." className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition font-mono" value={editSelfIntroVideo} onChange={(e) => setEditSelfIntroVideo(e.target.value)} />
                 </div>
               </div>
 

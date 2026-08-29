@@ -17,6 +17,7 @@ import atsRouter from './modules/ats/ats.routes';
 import reportsRouter from './modules/reports/reports.routes';
 import searchRouter from './modules/search/search.routes';
 import auditRouter from './modules/audit/audit.routes';
+import drivesRouter from './modules/drives/drives.routes';
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/api/ats', atsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/audit-logs', auditRouter);
+app.use('/api/drives', drivesRouter);
 
 // Fallback 404
 app.use((req, res) => {

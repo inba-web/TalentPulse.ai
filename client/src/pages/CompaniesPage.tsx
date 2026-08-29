@@ -3,8 +3,10 @@ import { apiFetch } from '../utils/apiFetch';
 import { formatImageUrl } from '../utils/formatImageUrl';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
-import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users, Award } from 'lucide-react';
+import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users, Award, Upload } from 'lucide-react';
+import DriveManagementModal from '../components/DriveManagementModal';
 import { useAuthStore } from '../store/authStore';
+import { useJobStore } from '../store/jobStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function CompaniesPage() {
@@ -21,6 +23,7 @@ export default function CompaniesPage() {
     resolveLocation 
   } = useCompanyStore();
   const { hasPermission } = useAuthStore();
+  const { extractJd, createJob } = useJobStore();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
@@ -88,6 +91,14 @@ export default function CompaniesPage() {
   const [opStatus, setOpStatus] = useState('COLD');
   const [createLoading, setCreateLoading] = useState(false);
 
+  // Company JD PDF upload & AI extraction state
+  const [companyJdPdf, setCompanyJdPdf] = useState<File | null>(null);
+  const [pdfExtracting, setPdfExtracting] = useState(false);
+  const [createJobTitle, setCreateJobTitle] = useState('');
+  const [createCtc, setCreateCtc] = useState(6.0);
+  const [createLocation, setCreateLocation] = useState('');
+  const [createJdText, setCreateJdText] = useState('');
+
   // Edit form state
   const [editOpen, setEditOpen] = useState(false);
   const [activeEditId, setActiveEditId] = useState<string | null>(null);
@@ -127,6 +138,10 @@ export default function CompaniesPage() {
   const [jdResults, setJdResults] = useState<any[]>([]);
   const [jdError, setJdError] = useState('');
   const [jdResultsExpanded, setJdResultsExpanded] = useState(false);
+
+  // Drive Modal state
+  const [driveModalOpen, setDriveModalOpen] = useState(false);
+  const [activeDriveJob, setActiveDriveJob] = useState<any>(null);
 
   // Job JD edit state (edit jdText per job in view modal)
   const [editJdJobId, setEditJdJobId] = useState<string | null>(null);
@@ -229,6 +244,37 @@ export default function CompaniesPage() {
     fetchCompanies({ search, status, page, limit: 10 });
   }, [search, status, page]);
 
+  const handleCompanyPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCompanyJdPdf(file);
+    setPdfExtracting(true);
+
+    try {
+      const data = await extractJd(file);
+      const ext = data.extracted;
+
+      if (ext.jobTitle) {
+        setCreateJobTitle(ext.jobTitle);
+        if (!designation) setDesignation(ext.jobTitle);
+      }
+      if (ext.location) setCreateLocation(ext.location);
+      if (ext.ctc) setCreateCtc(ext.ctc);
+
+      let text = `Required Skills: ${ext.requiredSkills.join(', ')}\n\n`;
+      text += `Preferred Skills: ${ext.preferredSkills.join(', ')}\n\n`;
+      text += `Education: ${ext.education}\nExperience: ${ext.experience}\n\n`;
+      text += `Responsibilities:\n${ext.responsibilities.map((r: string) => `- ${r}`).join('\n')}`;
+
+      setCreateJdText(text);
+    } catch (err) {
+      alert('Failed to parse Company JD PDF using Gemini AI. Details can be entered manually.');
+    } finally {
+      setPdfExtracting(false);
+    }
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateLoading(true);
@@ -244,6 +290,27 @@ export default function CompaniesPage() {
         contactMobile,
         status: opStatus,
       });
+
+      // Automatically create the job opening if JD PDF or JD info is attached!
+      if (createJobTitle || createJdText) {
+        try {
+          const res = await apiFetch(`/api/companies?search=${encodeURIComponent(name)}`);
+          const resData = await res.json();
+          const createdComp = resData.data?.companies?.[0];
+          if (createdComp?.id) {
+            await createJob({
+              companyId: createdComp.id,
+              jobTitle: createJobTitle || designation || 'Graduate Engineer Trainee',
+              jdText: createJdText || `Job Opportunity at ${name}`,
+              ctc: Number(createCtc) || 6.0,
+              location: createLocation || 'India',
+            });
+          }
+        } catch (jErr) {
+          console.error('Job auto-creation notice:', jErr);
+        }
+      }
+
       setCreateOpen(false);
       // Reset form
       setName('');
@@ -253,6 +320,11 @@ export default function CompaniesPage() {
       setDesignation('');
       setContactEmail('');
       setContactMobile('');
+      setCompanyJdPdf(null);
+      setCreateJobTitle('');
+      setCreateCtc(6.0);
+      setCreateLocation('');
+      setCreateJdText('');
       fetchCompanies({ page: 1 });
     } catch (err: any) {
       alert(err.message || 'Creation failed');
@@ -897,7 +969,18 @@ export default function CompaniesPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              {/* JD Edit button — only for ADMIN/LEAD/MANAGER */}
+                              <button
+                                onClick={() => {
+                                  setActiveDriveJob({ ...job, company: { name: detailedCompany.name } });
+                                  setDriveModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary text-xs font-bold rounded flex items-center gap-1 transition cursor-pointer"
+                                title="Manage Drive Candidates"
+                              >
+                                <Users className="w-3.5 h-3.5" />
+                                <span>Manage Drive</span>
+                              </button>
+                              {/* JD Edit button */}
                               {hasPermission('JOB_UPDATE') && (
                                 <button
                                   onClick={() => { setEditJdJobId(job.id); setEditJdText(job.jdText || ''); }}
@@ -1068,6 +1151,38 @@ export default function CompaniesPage() {
             </div>
             
             <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              
+              {/* Company JD PDF Upload Box */}
+              <div className="border border-dashed border-border-primary p-4 rounded-xl text-center space-y-2 bg-background-secondary relative">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={handleCompanyPdfUpload}
+                  disabled={pdfExtracting}
+                />
+                {pdfExtracting ? (
+                  <div className="flex flex-col items-center gap-2 py-1">
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                    <div className="text-xs font-bold text-primary">Gemini AI parsing Company JD PDF...</div>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-6 h-6 text-primary mx-auto" />
+                    <div className="text-xs font-bold text-text-primary">
+                      {companyJdPdf ? companyJdPdf.name : 'Upload Company Job Description (JD) PDF'}
+                    </div>
+                    <div className="text-[10px] text-text-muted">
+                      Gemini AI will automatically parse designation, package, location, and requirements.
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="border-b border-border-primary pb-2 pt-1">
+                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Company Information</span>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Company Name</label>
@@ -1172,6 +1287,55 @@ export default function CompaniesPage() {
                     <option value="HOT">Hot</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Job Opening Specifications (autofilled from PDF) */}
+              <div className="border-b border-border-primary pb-2 pt-2">
+                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Placement Job Role Specifications (Extracted from JD PDF)</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Job Role / Designation</label>
+                  <input
+                    type="text"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none focus:border-primary bg-background-secondary text-text-primary transition"
+                    placeholder="e.g. Software Engineer Trainee"
+                    value={createJobTitle}
+                    onChange={(e) => setCreateJobTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">CTC Package (LPA)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none focus:border-primary bg-background-secondary text-text-primary transition"
+                    value={createCtc}
+                    onChange={(e) => setCreateCtc(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Job Location</label>
+                <input
+                  type="text"
+                  className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none focus:border-primary bg-background-secondary text-text-primary transition"
+                  placeholder="e.g. Bangalore / Chennai / Remote"
+                  value={createLocation}
+                  onChange={(e) => setCreateLocation(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Job Description Details (JD Text)</label>
+                <textarea
+                  className="w-full p-3 border border-border-primary rounded text-xs outline-none focus:border-primary h-28 resize-none bg-background-secondary text-text-primary font-mono"
+                  placeholder="Job requirements, responsibilities, and criteria..."
+                  value={createJdText}
+                  onChange={(e) => setCreateJdText(e.target.value)}
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
@@ -1395,6 +1559,12 @@ export default function CompaniesPage() {
           </div>
         </div>
       )}
+      {/* Drive Candidates Management Dashboard Modal */}
+      <DriveManagementModal
+        isOpen={driveModalOpen}
+        job={activeDriveJob}
+        onClose={() => setDriveModalOpen(false)}
+      />
     </div>
   );
 }

@@ -108,13 +108,13 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md bg-surface-1 border border-border-primary rounded p-8 z-20 overflow-hidden flex flex-col items-center shadow-lg">
         
         {/* Brand header — large prominent logo */}
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <div className="p-4 bg-gradient-primary rounded-2xl glow-primary border border-primary/30 shadow-lg">
-            <img src="/assets/talentpulse_logo.png" className="w-16 h-16 object-contain" alt="TalentPulse Logo" />
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <div className="p-3 bg-surface-2 rounded-xl border border-border-primary shadow-sm flex items-center justify-center">
+            <img src="/assets/talentpulse_logo.png" className="h-16 w-auto object-contain" alt="Rathinam TalentPulse Logo" />
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>
-            <p className="text-[11px] text-text-muted font-bold mt-2 uppercase tracking-widest">Authorized Talent &amp; Placement Portal</p>
+            <p className="text-[11px] text-text-muted font-bold mt-1 uppercase tracking-widest">Authorized Academic &amp; Placement Portal</p>
           </div>
         </div>
 

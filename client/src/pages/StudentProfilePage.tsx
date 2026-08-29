@@ -26,7 +26,8 @@ import {
   Loader2,
   Edit2,
   Trash2,
-  X
+  X,
+  Video
 } from 'lucide-react';
 
 export default function StudentProfilePage() {
@@ -43,6 +44,10 @@ export default function StudentProfilePage() {
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [evaluating, setEvaluating] = useState(false);
+
+  // Drive history state
+  const [driveHistory, setDriveHistory] = useState<any>(null);
+  const [driveHistoryLoading, setDriveHistoryLoading] = useState(false);
 
   // Termination Dialog control
   const [termOpen, setTermOpen] = useState(false);
@@ -70,6 +75,7 @@ export default function StudentProfilePage() {
   const [editGithub, setEditGithub] = useState('');
   const [editLinkedin, setEditLinkedin] = useState('');
   const [editPortfolio, setEditPortfolio] = useState('');
+  const [editSelfIntroVideo, setEditSelfIntroVideo] = useState('');
   const [editResumeUrl, setEditResumeUrl] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
@@ -112,6 +118,7 @@ export default function StudentProfilePage() {
     setEditGithub(student.links?.githubUrl || '');
     setEditLinkedin(student.links?.linkedinUrl || '');
     setEditPortfolio(student.links?.portfolioUrl || '');
+    setEditSelfIntroVideo(student.selfIntroVideoUrl || '');
     const latestDoc = (student.documents || []).find((d: any) => d.documentType === 'RESUME')?.fileUrl || '';
     setEditResumeUrl(latestDoc);
     setEditOpen(true);
@@ -138,6 +145,7 @@ export default function StudentProfilePage() {
         githubUrl: editGithub || null,
         linkedinUrl: editLinkedin || null,
         portfolioUrl: editPortfolio || null,
+        selfIntroVideoUrl: editSelfIntroVideo || null,
         resumeUrl: editResumeUrl || null,
       });
       setEditOpen(false);
@@ -188,9 +196,26 @@ export default function StudentProfilePage() {
     }
   };
 
+  const loadDriveHistory = async () => {
+    if (!id) return;
+    setDriveHistoryLoading(true);
+    try {
+      const res = await apiFetch(`/api/drives/student/${id}`);
+      const result = await res.json();
+      if (result.success) {
+        setDriveHistory(result.data);
+      }
+    } catch (err) {
+      console.error('Failed to load drive history:', err);
+    } finally {
+      setDriveHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadStudentData();
     loadJobs();
+    loadDriveHistory();
   }, [id]);
 
   const handleEvaluateAts = async () => {
@@ -380,6 +405,151 @@ export default function StudentProfilePage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Self Intro Video Card */}
+          <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <Video className="w-4 h-4 text-primary" />
+                <span>Self Intro Video</span>
+              </h3>
+              {student.selfIntroVideoUrl && (
+                <a
+                  href={student.selfIntroVideoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded border border-primary/20 transition cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Watch Video</span>
+                </a>
+              )}
+            </div>
+
+            {student.selfIntroVideoUrl ? (
+              <div className="border border-border-primary rounded-xl overflow-hidden bg-background-secondary p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-primary/10 text-primary">
+                    <Video className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-text-primary">Candidate Self Intro Video</div>
+                    <a href={student.selfIntroVideoUrl} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline font-mono truncate max-w-xs block">
+                      {student.selfIntroVideoUrl}
+                    </a>
+                  </div>
+                </div>
+                <a
+                  href={student.selfIntroVideoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-gradient-primary text-white text-xs font-bold rounded shadow hover:brightness-110 transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>Play Intro Video</span>
+                </a>
+              </div>
+            ) : (
+              <div className="text-xs text-text-muted font-medium py-4 text-center bg-surface-2/40 border border-dashed border-border-primary rounded-lg">
+                No Self Intro Video URL linked for this candidate yet.
+              </div>
+            )}
+          </div>
+
+          {/* Registered & Attended Placement Drives Card */}
+          <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-primary pb-4">
+              <div>
+                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                  <Building className="w-4 h-4 text-primary" />
+                  <span>Registered &amp; Attended Placement Drives</span>
+                </h3>
+                <p className="text-[11px] text-text-muted mt-0.5">Track company drives registered, attended, shortlisted, and selected outcomes.</p>
+              </div>
+            </div>
+
+            {/* Metrics overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Registered Drives</div>
+                <div className="text-xl font-extrabold text-text-primary mt-1">{driveHistory?.metrics?.registeredCount ?? 0}</div>
+              </div>
+              <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Attended Drives</div>
+                <div className="text-xl font-extrabold text-primary mt-1">{driveHistory?.metrics?.attendedCount ?? 0}</div>
+              </div>
+              <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Shortlisted Drives</div>
+                <div className="text-xl font-extrabold text-warning mt-1">{driveHistory?.metrics?.shortlistedCount ?? 0}</div>
+              </div>
+              <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Selected / Placed</div>
+                <div className="text-xl font-extrabold text-success mt-1">{driveHistory?.metrics?.selectedCount ?? 0}</div>
+              </div>
+            </div>
+
+            {/* Drive Table */}
+            {!driveHistory || driveHistory.drives.length === 0 ? (
+              <div className="text-xs text-text-muted font-medium py-6 text-center bg-surface-2/30 rounded border border-border-primary">
+                Candidate has not registered for any company placement drives yet.
+              </div>
+            ) : (
+              <div className="border border-border-primary rounded overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-background-tertiary border-b border-border-primary text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                        <th className="px-4 py-3">Company &amp; Job Title</th>
+                        <th className="px-4 py-3 text-center">CTC (LPA)</th>
+                        <th className="px-4 py-3 text-center">Registered Date</th>
+                        <th className="px-4 py-3 text-center">Attendance</th>
+                        <th className="px-4 py-3 text-center">Drive Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-primary bg-surface-1">
+                      {driveHistory.drives.map((d: any) => {
+                        const isAttended = ['ATTENDED', 'SHORTLISTED', 'SELECTED'].includes(d.driveStatus);
+                        return (
+                          <tr key={d.id} className="hover:bg-surface-2/50 transition duration-150">
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-text-primary">{d.jobTitle}</div>
+                              <div className="text-[11px] text-text-muted font-medium">{d.company?.name}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center font-bold text-text-primary">{d.ctc} LPA</td>
+                            <td className="px-4 py-3 text-center text-text-muted">
+                              {new Date(d.registeredAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {isAttended ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-success/10 text-success border border-success/20">
+                                  Attended
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-2 text-text-muted border border-border-primary">
+                                  Registered
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2.5 py-1 rounded text-[10px] font-extrabold border ${
+                                d.driveStatus === 'SELECTED' ? 'bg-success/15 text-success border-success/30' :
+                                d.driveStatus === 'SHORTLISTED' ? 'bg-primary/15 text-primary border-primary/30' :
+                                d.driveStatus === 'ATTENDED' ? 'bg-warning/15 text-warning border-warning/30' :
+                                d.driveStatus === 'REJECTED' ? 'bg-error/15 text-error border-error/30' :
+                                'bg-surface-2 text-text-secondary border-border-primary'
+                              }`}>
+                                {d.driveStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Resume Viewer Card */}
@@ -881,7 +1051,7 @@ export default function StudentProfilePage() {
               <div className="border-b border-border-primary pb-2 pt-2 mb-2">
                 <span className="text-xs font-bold text-primary uppercase tracking-wider">Social Links</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">GitHub URL</label>
                   <input
@@ -907,6 +1077,16 @@ export default function StudentProfilePage() {
                     className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
                     value={editPortfolio}
                     onChange={(e) => setEditPortfolio(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Self Intro Video URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition font-mono"
+                    value={editSelfIntroVideo}
+                    onChange={(e) => setEditSelfIntroVideo(e.target.value)}
                   />
                 </div>
               </div>

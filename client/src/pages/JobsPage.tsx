@@ -4,7 +4,8 @@ import { useJobStore } from '../store/jobStore';
 import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
 import { useAuthStore } from '../store/authStore';
-import { Plus, Search, FileText, ArrowRight, Check, X, Loader2, Upload, HelpCircle, Edit, RefreshCw } from 'lucide-react';
+import { Plus, Search, FileText, ArrowRight, Check, X, Loader2, Upload, HelpCircle, Edit, RefreshCw, Users } from 'lucide-react';
+import DriveManagementModal from '../components/DriveManagementModal';
 
 export default function JobsPage() {
   const { jobs, fetchJobs, createJob, forwardJob, reviewJob, extractJd } = useJobStore();
@@ -39,6 +40,10 @@ export default function JobsPage() {
   // Extraction states
   const [extracting, setExtracting] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+
+  // Drive Candidates Modal control
+  const [driveModalOpen, setDriveModalOpen] = useState(false);
+  const [activeDriveJob, setActiveDriveJob] = useState<any>(null);
 
   // Approval Comment Modal control
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -237,7 +242,20 @@ export default function JobsPage() {
                     <td className="px-6 py-4 text-center">
                       <StatusBadge status={job.status} />
                     </td>
-                    <td className="px-6 py-4 text-right space-x-2">
+                    <td className="px-6 py-4 text-right space-x-2 flex items-center justify-end gap-2">
+                      {/* Drive Candidates Management Button */}
+                      <button
+                        onClick={() => {
+                          setActiveDriveJob(job);
+                          setDriveModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-bold rounded transition cursor-pointer"
+                        title="Manage Registered Candidates & Drive Pipeline"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Drive Candidates</span>
+                      </button>
+
                       {/* Draft forward action */}
                       {job.status === 'DRAFT' && isLead && (
                         <button
@@ -466,6 +484,15 @@ export default function JobsPage() {
           </div>
         </div>
       )}
+      {/* Drive Candidates Management Dashboard Modal */}
+      <DriveManagementModal
+        isOpen={driveModalOpen}
+        job={activeDriveJob}
+        onClose={() => {
+          setDriveModalOpen(false);
+          fetchJobs({ page });
+        }}
+      />
     </div>
   );
 }

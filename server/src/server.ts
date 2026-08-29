@@ -130,6 +130,7 @@ async function runSchemaMigrations() {
           collegeEmail: 'inbavarunans.bcy24@rathinam.in',
           mobileNumber: '9876543210',
           studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          selfIntroVideoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
           graduationDate: new Date('2027-05-31'),
           placementStatus: 'YET_TO_BE_PLACED',
           isDeleted: false,
@@ -493,9 +494,42 @@ async function runSchemaMigrations() {
       });
     }
   } catch (err: any) {
-    logger.warn({ err: err.message }, 'Non-fatal 24 LPA placement seeding notice.');
+    logger.warn({ err: err.message }, 'Non-fatal 20/24 LPA placement seeding notice.');
   }
 
+  // Auto-seed demo placement drive candidate registrations
+  try {
+    const jobs = await prisma.job.findMany({ take: 5 });
+    const students = await prisma.student.findMany({ where: { isDeleted: false }, take: 10 });
+    if (jobs.length > 0 && students.length > 0) {
+      for (const job of jobs) {
+        for (let i = 0; i < Math.min(students.length, 6); i++) {
+          const st = students[i];
+          let statusVal: any = 'REGISTERED';
+          if (i === 1) statusVal = 'ATTENDED';
+          if (i === 2) statusVal = 'SHORTLISTED';
+          if (i === 3) statusVal = 'SELECTED';
+
+          await prisma.driveStudent.upsert({
+            where: { jobId_studentId: { jobId: job.id, studentId: st.id } },
+            create: {
+              jobId: job.id,
+              studentId: st.id,
+              status: statusVal,
+              registeredAt: new Date(),
+              attendedAt: ['ATTENDED', 'SHORTLISTED', 'SELECTED'].includes(statusVal) ? new Date() : null,
+              shortlistedAt: ['SHORTLISTED', 'SELECTED'].includes(statusVal) ? new Date() : null,
+              selectedAt: statusVal === 'SELECTED' ? new Date() : null,
+            },
+            update: {},
+          }).catch(() => {});
+        }
+      }
+      logger.info('Sample drive candidate registrations seeded successfully.');
+    }
+  } catch (err: any) {
+    logger.warn({ err: err.message }, 'Non-fatal drive registration seeding notice.');
+  }
 }
 
 // Run migrations then start server
