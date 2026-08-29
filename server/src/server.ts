@@ -73,33 +73,32 @@ async function runSchemaMigrations() {
       logger.info('Default demo users seeded automatically.');
     }
 
-    // Auto-seed INBAVARUNAN S student profile if not present
-    let dept = await prisma.department.findFirst({ where: { name: 'Computer Science' } });
-    if (!dept) {
-      dept = await prisma.department.findFirst({ where: { code: 'CSE' } });
-    }
+    // Auto-seed / Upsert INBAVARUNAN S student profile
+    let dept = await prisma.department.findFirst({
+      where: { OR: [{ name: 'Computer Science' }, { code: 'CSE' }, { code: 'CS' }] },
+    });
     if (!dept) {
       dept = await prisma.department.create({
-        data: { name: 'Computer Science', code: 'CS' },
+        data: { name: 'Computer Science', code: 'CSE' },
       });
     }
 
     const inbaRoll = 'RCAS2024BCY046';
-    const existingInba = await prisma.student.findUnique({ where: { rollNumber: inbaRoll } });
+    const existingInba = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { rollNumber: inbaRoll },
+          { personalEmail: 'inbavarunans@gmail.com' },
+          { collegeEmail: 'inbavarunans.bcy24@rathinam.in' },
+          { mobileNumber: '9876543210' },
+        ],
+      },
+    });
 
-    if (!existingInba) {
-      // Check if email or mobile already registered under different roll
-      await prisma.student.deleteMany({
-        where: {
-          OR: [
-            { personalEmail: 'inbavarunans@gmail.com' },
-            { collegeEmail: 'inbavarunans.bcy24@rathinam.in' },
-            { mobileNumber: '9876543210' },
-          ],
-        },
-      });
-
-      const student = await prisma.student.create({
+    if (existingInba) {
+      // Update existing student record to ensure RCAS2024BCY046 and all fields match
+      await prisma.student.update({
+        where: { id: existingInba.id },
         data: {
           rollNumber: inbaRoll,
           fullName: 'INBAVARUNAN S',
@@ -112,12 +111,49 @@ async function runSchemaMigrations() {
           studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
           graduationDate: new Date('2027-05-31'),
           placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          deletedAt: null,
           academics: {
-            create: {
-              sslcPercentage: 91.2,
-              hscPercentage: 89.5,
-              ugPercentage: 82.4,
+            upsert: {
+              create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
+              update: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
             },
+          },
+          links: {
+            upsert: {
+              create: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+              update: {
+                githubUrl: 'https://github.com/inba-web',
+                linkedinUrl: 'https://www.linkedin.com/in/inbavarunan-s',
+                portfolioUrl: 'https://inbavarunan-portfolio.vercel.app',
+              },
+            },
+          },
+        },
+      });
+      logger.info('INBAVARUNAN S student profile updated successfully.');
+    } else {
+      // Create new student record
+      await prisma.student.create({
+        data: {
+          rollNumber: inbaRoll,
+          fullName: 'INBAVARUNAN S',
+          departmentId: dept.id,
+          gender: 'MALE',
+          hostelStatus: 'HOSTEL',
+          personalEmail: 'inbavarunans@gmail.com',
+          collegeEmail: 'inbavarunans.bcy24@rathinam.in',
+          mobileNumber: '9876543210',
+          studentPhotoUrl: 'https://drive.google.com/file/d/1fmkUGuUsnWnFfZ_lppA7jv9YFWjNuV7Y/view?usp=sharing',
+          graduationDate: new Date('2027-05-31'),
+          placementStatus: 'YET_TO_BE_PLACED',
+          isDeleted: false,
+          academics: {
+            create: { sslcPercentage: 91.2, hscPercentage: 89.5, ugPercentage: 82.4 },
           },
           links: {
             create: {
@@ -138,7 +174,7 @@ async function runSchemaMigrations() {
           },
         },
       });
-      logger.info(`Student profile ${student.rollNumber} (${student.fullName}) seeded successfully.`);
+      logger.info('INBAVARUNAN S student profile created successfully.');
     }
 
     logger.info('Schema auto-migration completed successfully.');
