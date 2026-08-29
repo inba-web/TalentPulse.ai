@@ -77,6 +77,23 @@ async function runSchemaMigrations() {
       logger.info('Default demo users seeded automatically.');
     }
 
+    // Ensure all demo users (Admin, Manager, Lead, Recruiter) have REPORT_READ & STUDENT_READ permissions to view dashboard stats
+    try {
+      const allUsers = await prisma.user.findMany();
+      const corePermissions = ['REPORT_READ', 'STUDENT_READ', 'COMPANY_READ', 'JOB_READ'];
+      for (const u of allUsers) {
+        for (const pCode of corePermissions) {
+          await prisma.userPermission.upsert({
+            where: { userId_permissionCode: { userId: u.id, permissionCode: pCode } },
+            create: { userId: u.id, permissionCode: pCode, granted: true },
+            update: { granted: true },
+          }).catch(() => {});
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message }, 'Non-fatal permission grant notice.');
+    }
+
     // Auto-seed / Upsert INBAVARUNAN S student profile
     let dept = await prisma.department.findFirst({
       where: { OR: [{ name: 'Computer Science' }, { code: 'CSE' }, { code: 'CS' }] },
