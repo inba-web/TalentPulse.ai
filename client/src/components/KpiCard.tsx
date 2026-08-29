@@ -15,12 +15,12 @@ interface KpiCardProps {
 
 export default function KpiCard({ title, value, icon: Icon, description, trend, color = 'blue' }: KpiCardProps) {
   const colors = {
-    blue: 'bg-blue-500/10 text-blue-600',
-    emerald: 'bg-emerald-500/10 text-emerald-600',
-    amber: 'bg-amber-500/10 text-amber-600',
-    rose: 'bg-rose-500/10 text-rose-600',
-    indigo: 'bg-indigo-500/10 text-indigo-600',
-    cyan: 'bg-cyan-500/10 text-cyan-600',
+    blue: 'bg-primary/10 text-primary',
+    emerald: 'bg-success/10 text-success',
+    amber: 'bg-warning/10 text-warning',
+    rose: 'bg-error/10 text-error',
+    indigo: 'bg-primary/10 text-primary',
+    cyan: 'bg-primary/10 text-primary',
   };
 
   return (

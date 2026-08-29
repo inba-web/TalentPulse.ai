@@ -2,6 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Blue — Primary / Trust */
+  --color-primary: #2563EB;          /* Slate Blue / Royal Blue */
+  --color-primary-hover: #1D4ED8;    /* Royal Blue Hover */
+  --color-primary-active: #1E40AF;   /* Navy Active */
+  --color-primary-soft: #EFF6FF;     /* Blue 50 */
+  --color-primary-background: #F8FAFC;
+
+  /* Orange — Action / Attention (Secondary) */
+  --color-secondary: #EA580C;        /* Enterprise Orange */
+  --color-secondary-hover: #C2410C;  /* Orange Hover */
+  --color-secondary-active: #9A3412; /* Dark Orange Active */
+  --color-secondary-soft: #FFF7ED;   /* Orange 50 */
+  --color-secondary-background: #FFF7ED;
+
+  /* Green — Success / Growth */
+  --color-success: #16A34A;          /* Success Green */
+  --color-success-hover: #15803D;    /* Success Green Hover */
+  --color-success-active: #166534;   /* Success Green Active */
+  --color-success-soft: #F0FDF4;     /* Green 50 */
+  --color-success-background: #F0FDF4;
+
+  /* Warning / Pending */
+  --color-warning: #EA580C;          /* Orange Warning */
+  --color-warning-hover: #C2410C;
+  --color-warning-active: #9A3412;
+  --color-warning-soft: #FFF7ED;     /* Orange 50 */
+  --color-warning-background: #FFF7ED;
+
+  /* Error / Danger */
+  --color-error: #DC2626;            /* Error Red */
+  --color-error-hover: #B91C1C;
+  --color-error-active: #7F1D1D;
+  --color-error-soft: #FEE2E2;
+  --color-error-background: #FEF2F2;
+
+  /* Core Layout */
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+
+  /* Typography */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;   /* Slate 700 */
+  --color-text-muted: #64748B;       /* Slate 500 */
+  --color-text-disabled: #94A3B8;    /* Slate 400 */
+}
+
+/* Backward compatibility overrides for existing gray/slate utility mappings */
+.text-secondary {
+  color: var(--color-text-muted) !important;
+}
+.hover\:text-secondary:hover {
+  color: var(--color-text-muted) !important;
+}
+.group-hover\:text-secondary:hover {
+  color: var(--color-text-muted) !important;
+}
+.border-secondary {
+  border-color: var(--color-border) !important;
+}
+.bg-secondary\/20 {
+  background-color: rgba(100, 116, 139, 0.2) !important;
+}
+.bg-secondary\/40 {
+  background-color: rgba(100, 116, 139, 0.4) !important;
+}
+
 @layer base {
   body {
     @apply font-sans bg-background text-text;
@@ -21,11 +91,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-secondary/20 rounded;
+  background-color: rgba(100, 116, 139, 0.2);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-secondary/40;
+  background-color: rgba(100, 116, 139, 0.4);
 }
 
 /* Glassmorphism Classes */
