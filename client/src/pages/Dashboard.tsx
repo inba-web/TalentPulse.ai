@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { formatImageUrl } from '../utils/formatImageUrl';
 import KpiCard from '../components/KpiCard';
 import { useJobStore } from '../store/jobStore';
 import { useAuthStore } from '../store/authStore';
@@ -17,6 +18,11 @@ import {
   ArrowRight,
   ShieldAlert,
   RefreshCw,
+  Building2,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Eye,
 } from 'lucide-react';
 import {
   BarChart,
@@ -40,6 +46,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
+  // Modal & Roster states
+  const [activeModal, setActiveModal] = useState<'PLACED' | 'UNPLACED' | 'ELIGIBLE' | 'HIGHEST' | 'COMPANY' | null>(null);
+  const [modalCompanyData, setModalCompanyData] = useState<any>(null);
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
+  const [placementsReport, setPlacementsReport] = useState<any>(null);
+  const [placementsLoading, setPlacementsLoading] = useState(false);
+
   const fetchStats = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -55,9 +68,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchPlacementsReport = async () => {
+    setPlacementsLoading(true);
+    try {
+      const response = await apiFetch('/api/reports/placements');
+      const result = await response.json();
+      if (result.success) {
+        setPlacementsReport(result.data);
+      }
+    } catch (err) {
+      console.error('Failed to load placements report:', err);
+    } finally {
+      setPlacementsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchJobs({ limit: 100 });
+    fetchPlacementsReport();
   }, []);
 
   const handleRefresh = async () => {
@@ -65,6 +94,7 @@ export default function Dashboard() {
     try {
       await fetchStats(true);
       await fetchJobs({ limit: 100 });
+      await fetchPlacementsReport();
     } catch (err) {
       console.error('Failed to refresh dashboard:', err);
     } finally {
@@ -101,6 +131,8 @@ export default function Dashboard() {
     highestCtc: 0,
   };
 
+  const companyBreakdown: any[] = stats?.companyBreakdown || [];
+
   return (
     <div className="space-y-8 relative">
       {/* Premium ambient radial glows */}
@@ -111,7 +143,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Overview</h1>
-          <p className="text-xs text-text-muted mt-1">Operational recruitment benchmarks and program activity.</p>
+          <p className="text-xs text-text-muted mt-1">Operational recruitment benchmarks and program activity. Click any metric to inspect detailed candidate rosters.</p>
         </div>
         <button
           onClick={handleRefresh}
@@ -123,79 +155,188 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* KPI Section */}
+      {/* Primary KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 z-10 relative">
-        <KpiCard
-          title="Total Registered Students"
-          value={kpis.totalStudents}
-          icon={Users}
-          description="Enrolled in active batches"
-          color="blue"
-        />
-        <KpiCard
-          title="Placement Success Rate"
-          value={`${kpis.placementRate}%`}
-          icon={TrendingUp}
-          description="Of active eligible students"
-          color="emerald"
-        />
-        <KpiCard
-          title="Average Salary Package"
-          value={`${kpis.averageCtc} LPA`}
-          icon={DollarSign}
-          description="Average placement CTC offer"
-          color="blue"
-        />
-        <KpiCard
-          title="Highest Package Offered"
-          value={`${kpis.highestCtc} LPA`}
-          icon={Award}
-          description="Highest CTC generated"
-          color="amber"
-        />
+        <div onClick={() => setActiveModal('ELIGIBLE')} className="cursor-pointer transition transform hover:-translate-y-0.5">
+          <KpiCard
+            title="Total Registered Students"
+            value={kpis.totalStudents}
+            icon={Users}
+            description="Click to inspect all enrolled candidates"
+            color="blue"
+          />
+        </div>
+        <div onClick={() => setActiveModal('PLACED')} className="cursor-pointer transition transform hover:-translate-y-0.5">
+          <KpiCard
+            title="Placement Success Rate"
+            value={`${kpis.placementRate}%`}
+            icon={TrendingUp}
+            description="Click to inspect placed candidates"
+            color="emerald"
+          />
+        </div>
+        <div onClick={() => setActiveModal('HIGHEST')} className="cursor-pointer transition transform hover:-translate-y-0.5">
+          <KpiCard
+            title="Average Salary Package"
+            value={`${kpis.averageCtc} LPA`}
+            icon={DollarSign}
+            description="Click to inspect placement salary tiers"
+            color="blue"
+          />
+        </div>
+        <div onClick={() => setActiveModal('HIGHEST')} className="cursor-pointer transition transform hover:-translate-y-0.5">
+          <KpiCard
+            title="Highest Package Offered"
+            value={`${kpis.highestCtc} LPA`}
+            icon={Award}
+            description="Click to inspect top offer holders"
+            color="amber"
+          />
+        </div>
       </div>
 
-      {/* Secondary KPIs */}
+      {/* Secondary Interactive KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-surface-1 p-5 rounded-lg border border-border-primary flex items-center gap-4">
-          <div className="p-3 bg-success/10 text-success rounded-lg">
-            <CheckCircle className="w-5 h-5" />
+        <div
+          onClick={() => setActiveModal('PLACED')}
+          className="bg-surface-1 p-5 rounded-lg border border-border-primary hover:border-success/50 flex items-center justify-between gap-4 cursor-pointer transition shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-success/10 text-success rounded-lg">
+              <CheckCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Placed Candidates</div>
+              <div className="text-lg font-bold text-text-primary">{kpis.placedStudents} Students</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Placed Candidates</div>
-            <div className="text-lg font-bold text-text-primary">{kpis.placedStudents}</div>
-          </div>
+          <span className="text-[10px] font-bold text-success hover:underline">Inspect &rarr;</span>
         </div>
 
-        <div className="bg-surface-1 p-5 rounded-lg border border-border-primary flex items-center gap-4">
-          <div className="p-3 bg-warning/10 text-warning rounded-lg">
-            <Activity className="w-5 h-5" />
+        <div
+          onClick={() => setActiveModal('UNPLACED')}
+          className="bg-surface-1 p-5 rounded-lg border border-border-primary hover:border-warning/50 flex items-center justify-between gap-4 cursor-pointer transition shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-warning/10 text-warning rounded-lg">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Pending Placements</div>
+              <div className="text-lg font-bold text-text-primary">{kpis.yetToBePlaced} Students</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Pending Placements</div>
-            <div className="text-lg font-bold text-text-primary">{kpis.yetToBePlaced}</div>
-          </div>
+          <span className="text-[10px] font-bold text-warning hover:underline">Inspect &rarr;</span>
         </div>
 
-        <div className="bg-surface-1 p-5 rounded-lg border border-border-primary flex items-center gap-4">
-          <div className="p-3 bg-error/10 text-error rounded-lg">
-            <AlertTriangle className="w-5 h-5" />
+        <div
+          onClick={() => setActiveModal('ELIGIBLE')}
+          className="bg-surface-1 p-5 rounded-lg border border-border-primary hover:border-error/50 flex items-center justify-between gap-4 cursor-pointer transition shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-error/10 text-error rounded-lg">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Terminated Students</div>
+              <div className="text-lg font-bold text-text-primary">{kpis.terminatedStudents} Students</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Terminated Students</div>
-            <div className="text-lg font-bold text-text-primary">{kpis.terminatedStudents}</div>
-          </div>
+          <span className="text-[10px] font-bold text-error hover:underline">Inspect &rarr;</span>
         </div>
 
-        <div className="bg-surface-1 p-5 rounded-lg border border-border-primary flex items-center gap-4">
-          <div className="p-3 bg-primary/10 text-primary rounded-lg">
-            <Layers className="w-5 h-5" />
+        <div
+          onClick={() => setActiveModal('ELIGIBLE')}
+          className="bg-surface-1 p-5 rounded-lg border border-border-primary hover:border-primary/50 flex items-center justify-between gap-4 cursor-pointer transition shadow-sm hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 text-primary rounded-lg">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Eligible Candidates</div>
+              <div className="text-lg font-bold text-text-primary">{kpis.eligibleStudents} Students</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-semibold">Eligible Candidates</div>
-            <div className="text-lg font-bold text-text-primary">{kpis.eligibleStudents}</div>
-          </div>
+          <span className="text-[10px] font-bold text-primary hover:underline">Inspect &rarr;</span>
         </div>
+      </div>
+
+      {/* ─── Company-Wise Placement & Offer Distribution Table ─── */}
+      <div className="bg-surface-1 p-6 rounded-lg border border-border-primary space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" />
+              <span>Company-Wise Placements &amp; Offer Breakdown</span>
+            </h3>
+            <p className="text-xs text-text-muted mt-0.5">Inspect which hiring partners placed candidates and number of offer letters issued.</p>
+          </div>
+          <span className="px-2.5 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-extrabold rounded-full">
+            {companyBreakdown.length} Corporate Partners Hired
+          </span>
+        </div>
+
+        {companyBreakdown.length === 0 ? (
+          <div className="py-8 text-center text-xs text-text-muted">No placement records available yet.</div>
+        ) : (
+          <div className="border border-border-primary rounded overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-background-tertiary">
+                <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                  <th className="px-4 py-3">Company Name</th>
+                  <th className="px-4 py-3 text-center">Placed Candidates</th>
+                  <th className="px-4 py-3 text-center">Total Offers Issued</th>
+                  <th className="px-4 py-3 text-center">Highest Package</th>
+                  <th className="px-4 py-3 text-center">Average Package</th>
+                  <th className="px-4 py-3 text-right">Roster &amp; Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-primary text-xs">
+                {companyBreakdown.map((c: any) => (
+                  <React.Fragment key={c.companyId || c.companyName}>
+                    <tr className="hover:bg-surface-2/60 transition">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-text-primary text-sm flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          <span>{c.companyName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="font-extrabold text-xs text-success bg-success/15 px-2.5 py-1 rounded-full border border-success/30">
+                          {c.placedCount} Placed
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="font-extrabold text-xs text-primary bg-primary/15 px-2.5 py-1 rounded-full border border-primary/30">
+                          {c.offersCount} Offers
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-bold text-amber-400">
+                        ₹ {c.maxCtc} LPA
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-bold text-text-secondary">
+                        ₹ {c.avgCtc} LPA
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          onClick={() => {
+                            setModalCompanyData(c);
+                            setActiveModal('COMPANY');
+                          }}
+                          className="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[11px] font-bold text-primary transition cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Placed Students ({c.placedCount})</span>
+                        </button>
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Actionable items section — only for ADMIN/MANAGER who can approve */}
@@ -231,6 +372,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
 
       {/* Chart Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -311,6 +453,223 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ─── Interactive Student Roster Modal ─── */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-1 border border-border-primary rounded-xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-border-primary flex justify-between items-center bg-background-secondary">
+              <div>
+                <h3 className="text-base font-extrabold text-text-primary tracking-tight flex items-center gap-2">
+                  {activeModal === 'COMPANY' && <Building2 className="w-5 h-5 text-primary" />}
+                  {activeModal === 'PLACED' && <CheckCircle className="w-5 h-5 text-success" />}
+                  {activeModal === 'UNPLACED' && <Activity className="w-5 h-5 text-warning" />}
+                  {activeModal === 'HIGHEST' && <Award className="w-5 h-5 text-amber-400" />}
+                  {activeModal === 'ELIGIBLE' && <Users className="w-5 h-5 text-primary" />}
+                  <span>
+                    {activeModal === 'COMPANY' && `Placed Students Roster — ${modalCompanyData?.companyName}`}
+                    {activeModal === 'PLACED' && `Placed Candidates Directory (${(placementsReport?.placed || []).length} Placed)`}
+                    {activeModal === 'UNPLACED' && `Pending Placement Candidates (${(placementsReport?.unplaced || []).length} Unplaced)`}
+                    {activeModal === 'HIGHEST' && `Highest CTC Offers & Package Holders`}
+                    {activeModal === 'ELIGIBLE' && `All Registered Candidate Roster (${kpis.totalStudents} Students)`}
+                  </span>
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">Verified real-time placement data and candidate academic records.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveModal(null);
+                  setModalCompanyData(null);
+                }}
+                className="p-2 rounded-lg bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition cursor-pointer border-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {activeModal === 'COMPANY' && (
+                <div className="space-y-4">
+                  <div className="flex gap-4 items-center bg-background-secondary p-4 rounded border border-border-primary">
+                    <div className="p-3 bg-primary/10 rounded-lg text-primary">
+                      <Building2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-text-primary text-base">{modalCompanyData?.companyName}</div>
+                      <div className="text-xs text-text-muted">
+                        {modalCompanyData?.placedCount} Placed &bull; {modalCompanyData?.offersCount} Total Offers Issued &bull; Max CTC: ₹ {modalCompanyData?.maxCtc} LPA &bull; Avg CTC: ₹ {modalCompanyData?.avgCtc} LPA
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-border-primary rounded overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead className="bg-background-tertiary">
+                        <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                          <th className="px-4 py-2.5">Student Name</th>
+                          <th className="px-4 py-2.5">Roll No &amp; Dept</th>
+                          <th className="px-4 py-2.5">Designation</th>
+                          <th className="px-4 py-2.5 text-center">CTC Package</th>
+                          <th className="px-4 py-2.5 text-center">Status</th>
+                          <th className="px-4 py-2.5 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-primary">
+                        {(modalCompanyData?.students || []).map((s: any) => (
+                          <tr key={s.placementId || s.studentId} className="hover:bg-surface-2/60 transition">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                {s.studentPhotoUrl ? (
+                                  <img
+                                    src={formatImageUrl(s.studentPhotoUrl)}
+                                    className="w-8 h-8 rounded-full object-cover border border-primary/30 flex-shrink-0"
+                                    alt={s.fullName}
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                    {s.fullName?.charAt(0).toUpperCase() || 'S'}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-bold text-text-primary">{s.fullName}</div>
+                                  <div className="text-[10px] text-text-muted">{s.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-mono font-semibold text-text-primary">
+                              {s.rollNumber}
+                              <div className="text-[10px] text-text-muted font-sans font-medium">{s.department}</div>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-text-primary">{s.jobTitle}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="font-extrabold text-success text-xs bg-success/10 px-2.5 py-1 rounded border border-success/20">
+                                ₹ {s.ctc} LPA
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="px-2 py-0.5 bg-success/15 border border-success/30 text-success text-[10px] font-extrabold rounded uppercase">
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => {
+                                  setActiveModal(null);
+                                  navigate(`/students/${s.studentId}`);
+                                }}
+                                className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                              >
+                                Profile &rarr;
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
+                <div className="border border-border-primary rounded overflow-hidden">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-background-tertiary">
+                      <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                        <th className="px-4 py-2.5">Candidate Name</th>
+                        <th className="px-4 py-2.5">Roll No &amp; Dept</th>
+                        <th className="px-4 py-2.5">Hiring Company</th>
+                        <th className="px-4 py-2.5 text-center">Offered Package (CTC)</th>
+                        <th className="px-4 py-2.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-primary">
+                      {(placementsReport?.placed || []).map((p: any) => (
+                        <tr key={p.id} className="hover:bg-surface-2/60 transition">
+                          <td className="px-4 py-3 font-bold text-text-primary">
+                            {p.fullName}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-semibold text-text-primary">{p.rollNumber}</span>
+                            <span className="text-[10px] text-text-muted block">{p.department}</span>
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-text-primary flex items-center gap-1.5 mt-1">
+                            <Building2 className="w-3.5 h-3.5 text-primary" />
+                            <span>{p.companyName}</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="font-extrabold text-success text-xs bg-success/10 px-2.5 py-1 rounded border border-success/20">
+                              ₹ {p.ctc} LPA
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => {
+                                setActiveModal(null);
+                                navigate(`/students/${p.studentId}`);
+                              }}
+                              className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                            >
+                              Profile &rarr;
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {(activeModal === 'UNPLACED' || activeModal === 'ELIGIBLE') && (
+                <div className="border border-border-primary rounded overflow-hidden">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-background-tertiary">
+                      <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                        <th className="px-4 py-2.5">Candidate Name</th>
+                        <th className="px-4 py-2.5">Roll No &amp; Dept</th>
+                        <th className="px-4 py-2.5">Email Contact</th>
+                        <th className="px-4 py-2.5 text-center">UG Score</th>
+                        <th className="px-4 py-2.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-primary">
+                      {(placementsReport?.unplaced || []).map((u: any) => (
+                        <tr key={u.id} className="hover:bg-surface-2/60 transition">
+                          <td className="px-4 py-3 font-bold text-text-primary">
+                            {u.fullName}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-semibold text-text-primary">{u.rollNumber}</span>
+                            <span className="text-[10px] text-text-muted block">{u.department}</span>
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary">{u.email}</td>
+                          <td className="px-4 py-3 text-center font-bold text-text-primary">
+                            {u.ugPercentage}%
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => {
+                                setActiveModal(null);
+                                navigate(`/students/${u.studentId}`);
+                              }}
+                              className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                            >
+                              Profile &rarr;
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

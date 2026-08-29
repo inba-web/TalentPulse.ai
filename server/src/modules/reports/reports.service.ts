@@ -65,6 +65,81 @@ export class ReportsService {
     const hostelCount = await prisma.student.count({ where: { hostelStatus: 'HOSTEL' } });
     const dayScholarCount = await prisma.student.count({ where: { hostelStatus: 'DAY_SCHOLAR' } });
 
+    // Company-wise placements breakdown
+    const companyPlacements = await prisma.studentPlacementHistory.findMany({
+      include: {
+        student: {
+          select: {
+            id: true,
+            fullName: true,
+            rollNumber: true,
+            personalEmail: true,
+            collegeEmail: true,
+            studentPhotoUrl: true,
+            department: { select: { code: true, name: true } },
+          },
+        },
+        company: {
+          select: { id: true, name: true, exactAddress: true },
+        },
+        job: {
+          select: { jobTitle: true, ctc: true },
+        },
+      },
+      orderBy: { ctc: 'desc' },
+    });
+
+    const companyMap: Record<string, {
+      companyId: string;
+      companyName: string;
+      placedCount: number;
+      offersCount: number;
+      avgCtc: number;
+      maxCtc: number;
+      students: any[];
+    }> = {};
+
+    for (const p of companyPlacements) {
+      const cName = p.company.name;
+      if (!companyMap[cName]) {
+        companyMap[cName] = {
+          companyId: p.company.id,
+          companyName: cName,
+          placedCount: 0,
+          offersCount: 0,
+          avgCtc: 0,
+          maxCtc: 0,
+          students: [],
+        };
+      }
+      companyMap[cName].offersCount += 1;
+      companyMap[cName].placedCount += 1;
+      companyMap[cName].students.push({
+        placementId: p.id,
+        studentId: p.student.id,
+        fullName: p.student.fullName,
+        rollNumber: p.student.rollNumber,
+        email: p.student.personalEmail || p.student.collegeEmail,
+        department: p.student.department?.code || 'CSE',
+        studentPhotoUrl: p.student.studentPhotoUrl,
+        jobTitle: p.job?.jobTitle || 'Software Engineer',
+        ctc: p.ctc,
+        status: p.status || 'OFFERED',
+        placedAt: p.placedAt,
+      });
+    }
+
+    const companyBreakdown = Object.values(companyMap).map((c) => {
+      const ctcList = c.students.map((s) => s.ctc);
+      const avg = ctcList.length > 0 ? ctcList.reduce((a, b) => a + b, 0) / ctcList.length : 0;
+      const max = ctcList.length > 0 ? Math.max(...ctcList) : 0;
+      return {
+        ...c,
+        avgCtc: Math.round(avg * 10) / 10,
+        maxCtc: max,
+      };
+    });
+
     return {
       kpis: {
         totalStudents,
@@ -77,6 +152,7 @@ export class ReportsService {
         highestCtc: highestPlacement._max.ctc || 12.5,
       },
       departmentStats,
+      companyBreakdown,
       demographics: {
         gender: [
           { name: 'Male', value: maleCount },
@@ -90,6 +166,7 @@ export class ReportsService {
       },
     };
   }
+
 
   /**
    * Retrieves detail rows for placed and unplaced students, filterable.
