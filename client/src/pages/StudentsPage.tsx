@@ -470,7 +470,27 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage}%</td>
                     {activeTab !== 'DELETED' && (
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <StatusBadge status={student.placementStatus} />
+                        {isAdmin ? (
+                          <select
+                            value={student.placementStatus}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              try {
+                                await updateStudent(student.id, { placementStatus: newStatus as any });
+                                fetchStudents(buildFilters(activeTab));
+                              } catch (err: any) {
+                                alert(err.message || 'Status update failed');
+                              }
+                            }}
+                            className="px-2 py-1 bg-surface-2 border border-border-primary rounded text-xs font-bold text-text-primary outline-none cursor-pointer focus:border-primary hover:border-border-hover transition"
+                          >
+                            <option value="YET_TO_BE_PLACED">Yet To Be Placed</option>
+                            <option value="PLACED">Placed</option>
+                            <option value="TERMINATED">Terminated</option>
+                          </select>
+                        ) : (
+                          <StatusBadge status={student.placementStatus} />
+                        )}
                       </td>
                     )}
                     {activeTab === 'DELETED' && (

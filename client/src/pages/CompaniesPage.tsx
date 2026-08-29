@@ -474,7 +474,28 @@ export default function CompaniesPage() {
                     <h3 className="font-bold text-text-primary text-base leading-tight">{company.name}</h3>
                     <div className="text-xs text-text-muted font-medium">{company.industry || 'Corporate Partner'}</div>
                   </div>
-                  <StatusBadge status={company.status} />
+                  {hasPermission('COMPANY_UPDATE') ? (
+                    <select
+                      value={company.status}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+                        try {
+                          await updateCompany(company.id, { status: newStatus as any });
+                          fetchCompanies({ page, limit: 10, search, status, industry: industryFilter, employeeSizeTier });
+                        } catch (err: any) {
+                          alert(err.message || 'Company status update failed');
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-surface-2 border border-border-primary rounded text-xs font-bold text-text-primary outline-none cursor-pointer focus:border-primary hover:border-border-hover transition"
+                    >
+                      <option value="COLD">Cold Pipeline</option>
+                      <option value="WARM">Warm Pipeline</option>
+                      <option value="HOT">Hot Opportunity</option>
+                      <option value="DRIVE_COMPLETED">Drive Completed</option>
+                    </select>
+                  ) : (
+                    <StatusBadge status={company.status} />
+                  )}
                 </div>
 
                 {/* Location resolver check */}

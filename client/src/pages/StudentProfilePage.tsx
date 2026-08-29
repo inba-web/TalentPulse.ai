@@ -278,7 +278,27 @@ export default function StudentProfilePage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-text-primary">{student.fullName}</h1>
-              <StatusBadge status={student.placementStatus} />
+              {isAdmin ? (
+                <select
+                  value={student.placementStatus}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value;
+                    try {
+                      await updateStudent(id!, { placementStatus: newStatus as any });
+                      await loadStudentData();
+                    } catch (err: any) {
+                      alert(err.message || 'Status update failed');
+                    }
+                  }}
+                  className="px-3 py-1 bg-surface-2 border border-border-primary rounded text-xs font-bold text-text-primary outline-none cursor-pointer focus:border-primary hover:border-border-hover transition"
+                >
+                  <option value="YET_TO_BE_PLACED">Yet To Be Placed</option>
+                  <option value="PLACED">Placed</option>
+                  <option value="TERMINATED">Terminated</option>
+                </select>
+              ) : (
+                <StatusBadge status={student.placementStatus} />
+              )}
             </div>
             <div className="text-xs font-mono font-medium text-text-muted">{student.rollNumber}</div>
             <div className="text-xs font-semibold text-text-secondary">{student.department.name}</div>

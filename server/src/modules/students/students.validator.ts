@@ -27,9 +27,14 @@ export const createStudentSchema = z.object({
   selfIntroVideoUrl: z.string().url('Invalid Video URL').startsWith('https://', 'HTTPS protocol required').optional().nullable(),
 });
 
-export const updateStudentSchema = createStudentSchema.partial().omit({
-  rollNumber: true, // Roll number cannot be updated after creation
-});
+export const updateStudentSchema = createStudentSchema
+  .extend({
+    placementStatus: z.enum(['YET_TO_BE_PLACED', 'PLACED', 'TERMINATED']).optional(),
+  })
+  .partial()
+  .omit({
+    rollNumber: true, // Roll number cannot be updated after creation
+  });
 
 export const terminateStudentSchema = z.object({
   reason: z.string().min(5, 'Reason must be at least 5 characters long'),
