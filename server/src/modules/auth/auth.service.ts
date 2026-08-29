@@ -293,7 +293,7 @@ export class AuthService {
     );
 
     const refreshToken = jwt.sign(
-      { userId },
+      { userId, jti: crypto.randomBytes(16).toString('hex') },
       JWT_REFRESH_SECRET,
       { expiresIn: `${REFRESH_TOKEN_EXPIRY_DAYS}d` }
     );
