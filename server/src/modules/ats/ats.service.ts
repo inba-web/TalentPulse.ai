@@ -123,7 +123,7 @@ export class AtsService {
       }
     }
 
-    const resumeVersion = resumeHash;
+    const resumeVersion = `${resumeHash}-v3`;
     const jobVersion = String(job.updatedAt.getTime());
 
     // 2. Check for existing cached analysis in the DB
