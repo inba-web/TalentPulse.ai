@@ -25,7 +25,9 @@ export const createStudentSchema = z.object({
   portfolioUrl: z.string().url('Invalid Portfolio URL').startsWith('https://', 'HTTPS protocol required').optional().nullable(),
   studentPhotoUrl: z.string().url('Invalid Photo URL').startsWith('https://', 'HTTPS protocol required').optional().nullable(),
   selfIntroVideoUrl: z.string().url('Invalid Video URL').startsWith('https://', 'HTTPS protocol required').optional().nullable(),
+  resumeUrl: z.string().url('Invalid Resume URL').optional().nullable(),
 });
+
 
 export const updateStudentSchema = createStudentSchema
   .extend({

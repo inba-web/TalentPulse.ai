@@ -77,6 +77,7 @@ export class StudentService {
         githubUrl,
         linkedinUrl,
         portfolioUrl,
+        resumeUrl,
         ...coreData
       } = data;
 
@@ -106,9 +107,30 @@ export class StudentService {
         },
       });
 
+      if (resumeUrl) {
+        await tx.studentDocument.upsert({
+          where: { id: `resume-doc-${studentId}` },
+          create: {
+            id: `resume-doc-${studentId}`,
+            studentId,
+            documentType: 'RESUME',
+            fileUrl: resumeUrl,
+            fileKey: 'resume-link',
+            mimeType: 'application/pdf',
+            fileSize: 1024576,
+            isLatestResume: true,
+          },
+          update: {
+            fileUrl: resumeUrl,
+            isLatestResume: true,
+          },
+        });
+      }
+
       return updatedStudent;
     });
   }
+
 
   /**
    * Fetch paginated student records with multiple search and category filters.

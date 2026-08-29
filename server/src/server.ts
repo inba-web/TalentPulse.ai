@@ -156,7 +156,27 @@ async function runSchemaMigrations() {
           },
         },
       });
+
+      await prisma.studentDocument.upsert({
+        where: { id: `resume-doc-${existingInba.id}` },
+        create: {
+          id: `resume-doc-${existingInba.id}`,
+          studentId: existingInba.id,
+          documentType: 'RESUME',
+          fileUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+          fileKey: 'inba-resume-drive-link',
+          mimeType: 'application/pdf',
+          fileSize: 1024576,
+          isLatestResume: true,
+        },
+        update: {
+          fileUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+          isLatestResume: true,
+        },
+      });
+
       logger.info('INBAVARUNAN S student profile updated successfully.');
+
     } else {
       // Create new student record
       await prisma.student.create({

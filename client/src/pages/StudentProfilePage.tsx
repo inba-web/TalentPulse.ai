@@ -70,7 +70,9 @@ export default function StudentProfilePage() {
   const [editGithub, setEditGithub] = useState('');
   const [editLinkedin, setEditLinkedin] = useState('');
   const [editPortfolio, setEditPortfolio] = useState('');
+  const [editResumeUrl, setEditResumeUrl] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+
 
   // Delete dialog state
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -110,6 +112,8 @@ export default function StudentProfilePage() {
     setEditGithub(student.links?.githubUrl || '');
     setEditLinkedin(student.links?.linkedinUrl || '');
     setEditPortfolio(student.links?.portfolioUrl || '');
+    const latestDoc = (student.documents || []).find((d: any) => d.documentType === 'RESUME')?.fileUrl || '';
+    setEditResumeUrl(latestDoc);
     setEditOpen(true);
   };
 
@@ -134,6 +138,7 @@ export default function StudentProfilePage() {
         githubUrl: editGithub || null,
         linkedinUrl: editLinkedin || null,
         portfolioUrl: editPortfolio || null,
+        resumeUrl: editResumeUrl || null,
       });
       setEditOpen(false);
       await loadStudentData();
@@ -904,6 +909,20 @@ export default function StudentProfilePage() {
                     onChange={(e) => setEditPortfolio(e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div className="border-b border-border-primary pb-2 pt-2 mb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Resume / CV Document</span>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Resume PDF / Google Drive Share Link</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/file/d/.../view"
+                  className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition font-mono"
+                  value={editResumeUrl}
+                  onChange={(e) => setEditResumeUrl(e.target.value)}
+                />
               </div>
 
               <button
