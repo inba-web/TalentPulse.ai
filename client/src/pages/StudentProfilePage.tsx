@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { formatImageUrl } from '../utils/formatImageUrl';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStudentStore } from '../store/studentStore';
 import StatusBadge from '../components/StatusBadge';
@@ -261,12 +262,16 @@ export default function StudentProfilePage() {
         <div className="flex items-center gap-5">
           {student.studentPhotoUrl ? (
             <img
-              src={student.studentPhotoUrl}
-              className="w-16 h-16 rounded object-cover border border-border-primary"
-              alt="Profile photo"
+              src={formatImageUrl(student.studentPhotoUrl)}
+              className="w-20 h-20 rounded-full object-cover border-2 border-primary/40 shadow-md flex-shrink-0"
+              alt={`${student.fullName} profile photo`}
+              onError={(e) => {
+                // If Google Drive permissions or image fails to load, fallback gracefully
+                (e.target as HTMLElement).style.display = 'none';
+              }}
             />
           ) : (
-            <div className="w-16 h-16 rounded bg-surface-2 border border-border-primary flex justify-center items-center text-primary text-2xl font-bold">
+            <div className="w-20 h-20 rounded-full bg-gradient-primary border-2 border-primary/40 flex justify-center items-center text-white text-2xl font-extrabold flex-shrink-0 glow-primary">
               {student.fullName.charAt(0).toUpperCase()}
             </div>
           )}

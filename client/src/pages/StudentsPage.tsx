@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { formatImageUrl } from '../utils/formatImageUrl';
 import { useStudentStore } from '../store/studentStore';
 import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
@@ -445,8 +446,23 @@ export default function StudentsPage() {
                     className="hover:bg-surface-2/40 cursor-pointer transition duration-150"
                     onClick={() => activeTab !== 'DELETED' && navigate(`/students/${student.id}`)}
                   >
-                    <td className="px-6 py-4 font-mono font-semibold text-xs text-text-primary">{student.rollNumber}</td>
-                    <td className="px-6 py-4 font-semibold text-text-primary">{student.fullName}</td>
+                    <td className="px-6 py-4 font-semibold text-text-primary">
+                      <div className="flex items-center gap-3">
+                        {(student as any).studentPhotoUrl ? (
+                          <img
+                            src={formatImageUrl((student as any).studentPhotoUrl)}
+                            className="w-8 h-8 rounded-full object-cover border border-primary/30 flex-shrink-0"
+                            alt={student.fullName}
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {student.fullName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span>{student.fullName}</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department?.name}</td>
                     <td className="px-6 py-4 text-xs font-medium">{student.gender}</td>
                     <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage}%</td>
