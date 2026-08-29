@@ -270,9 +270,12 @@ export default function AppShell({ children }: AppShellProps) {
           <img src="/assets/talentpulse_logo.png" className="w-7 h-7 object-contain" alt="Logo" />
           <span className="font-extrabold text-lg tracking-tight text-text-primary">TalentPulse<span className="text-primary">.ai</span></span>
         </div>
-        <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-surface-elevated rounded">
-          <Menu className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-2">
+          {user && <NotificationDropdown />}
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-surface-elevated rounded">
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Overlay (Mobile) */}
@@ -370,8 +373,8 @@ export default function AppShell({ children }: AppShellProps) {
               </kbd>
             </button>
 
-            {/* Notifications Feature (Admin, Manager, Lead) */}
-            {user && ['ADMIN', 'MANAGER', 'LEAD'].includes(user.roleName) && (
+            {/* Notifications Feature (Available to ALL roles: ADMIN, MANAGER, LEAD, RECRUITER) */}
+            {user && (
               <NotificationDropdown />
             )}
 
