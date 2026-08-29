@@ -267,7 +267,9 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Mobile Header */}
       <header className="md:hidden flex justify-between items-center bg-surface-2 text-text-primary px-4 h-16 border-b border-border-secondary">
         <div className="flex items-center gap-2.5">
-          <img src="/assets/talentpulse_logo.png" className="h-8 w-auto object-contain" alt="Rathinam Logo" />
+          <div className="p-0.5 bg-white rounded flex items-center justify-center">
+            <img src="/assets/talentpulse_logo.png" className="h-7 w-7 object-contain" alt="Rathinam Logo" />
+          </div>
           <span className="font-extrabold text-lg tracking-tight text-text-primary">TalentPulse<span className="text-primary">.ai</span></span>
         </div>
         <div className="flex items-center gap-2">
@@ -288,10 +290,12 @@ export default function AppShell({ children }: AppShellProps) {
         className={`fixed md:sticky top-0 left-0 bottom-0 z-40 w-64 bg-background-secondary text-text-secondary flex flex-col border-r border-border-primary transform md:transform-none transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
-        {/* Logo Area — Larger & More Prominent with Rathinam Branding */}
-        <div className="px-5 py-5 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
-          <div className="flex items-center gap-3">
-            <img src="/assets/talentpulse_logo.png" className="h-10 w-auto object-contain flex-shrink-0" alt="Rathinam TalentPulse Logo" />
+        {/* Logo Area — Rathinam Branding */}
+        <div className="px-4 py-4 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1 bg-white rounded-lg shadow-xs flex items-center justify-center flex-shrink-0">
+              <img src="/assets/talentpulse_logo.png" className="h-9 w-9 object-contain" alt="Rathinam Logo" />
+            </div>
             <div>
               <div className="font-extrabold text-base tracking-tight text-text-primary leading-tight">TalentPulse<span className="text-primary">.ai</span></div>
               <div className="text-[9px] text-text-muted font-bold uppercase tracking-widest">Placement Portal</div>

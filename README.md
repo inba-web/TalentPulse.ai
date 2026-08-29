@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="client/public/assets/talentpulse_logo.png" alt="Rathinam TalentPulse.ai Logo" width="160" />
+  <img src="client/public/assets/talentpulse_logo.png" alt="Rathinam Logo" width="160" />
 </p>
 
 <h1 align="center">✨ TalentPulse.ai ✨</h1>
