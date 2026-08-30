@@ -4,7 +4,7 @@ import { formatImageUrl } from '../utils/formatImageUrl';
 interface StudentAvatarProps {
   name: string;
   photoUrl?: string | null;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'passport';
   className?: string;
 }
 
@@ -22,12 +22,17 @@ export default function StudentAvatar({ name, photoUrl, size = 'md', className =
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
+  const isPassport = size === 'passport';
+
   const sizeClasses = {
     sm: 'w-7 h-7 text-[11px]',
     md: 'w-9 h-9 text-xs',
     lg: 'w-12 h-12 text-sm',
     xl: 'w-20 h-20 text-xl font-extrabold',
+    passport: 'w-32 h-40 sm:w-36 sm:h-44 text-3xl font-extrabold shadow-lg border-2 border-primary/40',
   };
+
+  const shapeClass = isPassport ? 'rounded-xl' : 'rounded-full';
 
   const hasPhoto = photoUrl && photoUrl.trim().length > 0 && !imageError;
 
@@ -37,14 +42,14 @@ export default function StudentAvatar({ name, photoUrl, size = 'md', className =
         src={formatImageUrl(photoUrl)}
         alt={name}
         onError={() => setImageError(true)}
-        className={`${sizeClasses[size]} rounded-full object-cover border border-primary/30 shadow-xs flex-shrink-0 ${className}`}
+        className={`${sizeClasses[size]} ${shapeClass} object-cover border border-primary/30 shadow-xs flex-shrink-0 ${className}`}
       />
     );
   }
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold glow-primary flex-shrink-0 select-none ${className}`}
+      className={`${sizeClasses[size]} ${shapeClass} bg-gradient-primary flex items-center justify-center text-white font-bold glow-primary flex-shrink-0 select-none ${className}`}
       title={name}
     >
       {getInitials(name)}

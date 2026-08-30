@@ -184,9 +184,18 @@ export default function ResetDataModal({ isOpen, onClose, onSuccess }: ResetData
               {/* Confirmation Form */}
               <form onSubmit={handleExecuteReset} className="space-y-4 pt-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-text-secondary">
-                    To confirm deletion, type <span className="text-error font-mono select-all font-extrabold">{REQUIRED_TEXT}</span> below:
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-text-secondary">
+                      To confirm deletion, type <span className="text-error font-mono select-all font-extrabold">{REQUIRED_TEXT}</span> below:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setTypedConfirmation(REQUIRED_TEXT)}
+                      className="text-[10px] font-bold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded border border-primary/20 cursor-pointer"
+                    >
+                      Auto-fill
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
@@ -208,7 +217,7 @@ export default function ResetDataModal({ isOpen, onClose, onSuccess }: ResetData
                   </button>
                   <button
                     type="submit"
-                    disabled={typedConfirmation !== REQUIRED_TEXT || executingReset}
+                    disabled={typedConfirmation.trim().replace(/\s+/g, ' ').toUpperCase() !== REQUIRED_TEXT || executingReset}
                     className="px-5 py-2 bg-error hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-extrabold rounded flex items-center gap-2 transition cursor-pointer shadow-lg"
                   >
                     {executingReset ? (
@@ -265,7 +274,10 @@ export default function ResetDataModal({ isOpen, onClose, onSuccess }: ResetData
               </div>
 
               <button
-                onClick={onClose}
+                onClick={() => {
+                  onClose();
+                  window.location.reload();
+                }}
                 className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded hover:bg-primary/90 transition cursor-pointer"
               >
                 Done &amp; Close

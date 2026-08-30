@@ -29,9 +29,10 @@ export class AdminController {
     }
 
     const { confirmationText } = req.body;
+    const normalized = (confirmationText || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
-    if (confirmationText !== 'RESET PLACEMENT DATA') {
-      throw new AppError('Invalid confirmation text. You must type exact phrase "RESET PLACEMENT DATA" to proceed.', 400, 'BAD_REQUEST');
+    if (normalized !== 'RESET PLACEMENT DATA') {
+      throw new AppError('Invalid confirmation text. You must type "RESET PLACEMENT DATA" to proceed.', 400, 'BAD_REQUEST');
     }
 
     const result = await AdminService.resetPlacementData();

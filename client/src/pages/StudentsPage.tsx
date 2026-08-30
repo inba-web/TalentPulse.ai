@@ -598,26 +598,31 @@ export default function StudentsPage() {
         </div>
 
         {/* Pagination */}
-        {total > 10 && (
-          <div className="px-6 py-4 border-t border-border-primary bg-background-tertiary flex justify-between items-center text-xs">
-            <span className="text-text-muted font-medium">
-              Showing {students.length} of {total} records
+        {total > 0 && (
+          <div className="px-6 py-4 border-t border-border-primary bg-background-tertiary flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
+            <span className="text-text-muted font-semibold">
+              Showing <strong className="text-text-primary">{(page - 1) * 10 + 1}–{Math.min(total, page * 10)}</strong> of <strong className="text-text-primary">{total}</strong> records
             </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-50 text-text-secondary text-xs font-semibold hover:bg-surface-elevated transition"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * 10 >= total}
-                className="px-3 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-50 text-text-secondary text-xs font-semibold hover:bg-surface-elevated transition"
-              >
-                Next
-              </button>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-bold text-text-muted bg-surface-2 px-2.5 py-1 rounded border border-border-primary">
+                Page {page} of {Math.ceil(total / 10) || 1}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3.5 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-40 text-text-secondary text-xs font-bold hover:bg-surface-elevated transition cursor-pointer disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page * 10 >= total}
+                  className="px-3.5 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-40 text-text-secondary text-xs font-bold hover:bg-surface-elevated transition cursor-pointer disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -291,7 +291,7 @@ export default function StudentProfilePage() {
       {/* Profile Header */}
       <div className="bg-surface-1 p-6 rounded border border-border-primary flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-5">
-          <StudentAvatar name={student.fullName} photoUrl={student.studentPhotoUrl} size="xl" />
+          <StudentAvatar name={student.fullName} photoUrl={student.studentPhotoUrl} size="passport" />
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-text-primary">{student.fullName}</h1>
