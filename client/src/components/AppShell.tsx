@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { apiFetch } from '../utils/apiFetch';
 import {
   LayoutDashboard,
   Users,
   Building2,
   Briefcase,
-  BrainCircuit,
   FileBarChart2,
-  ShieldCheck,
   LogOut,
   Search,
   Menu,
@@ -22,6 +21,8 @@ import {
   UserPlus,
   CheckCircle2,
   Building,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import CommandPalette from './CommandPalette';
 
@@ -29,7 +30,8 @@ interface NotificationItem {
   id: string;
   title: string;
   description: string;
-  time: string;
+  createdAt?: string;
+  time?: string;
   type: 'STUDENT' | 'JOB' | 'COMPANY' | 'ATS';
   read: boolean;
   link: string;
@@ -41,7 +43,7 @@ function NotificationDropdown() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: '1',
-      title: 'New Candidate Upload',
+      title: 'New Student Profile Upload',
       description: 'INBAVARUNAN S (RCAS2024BCY046) uploaded resume in Cyber Security.',
       time: '2 mins ago',
       type: 'STUDENT',
@@ -60,16 +62,16 @@ function NotificationDropdown() {
     {
       id: '3',
       title: 'High ATS Match Found',
-      description: '3 candidates achieved > 85% ATS score match for Zoho Corporation.',
+      description: '3 students achieved > 85% ATS score match for Zoho Corporation.',
       time: '1 hour ago',
       type: 'ATS',
       read: false,
-      link: '/recruiter',
+      link: '/jd-matcher',
     },
     {
       id: '4',
-      title: 'New Company Onboarded',
-      description: 'Palo Alto Networks registered in Hot Opportunity pipeline.',
+      title: 'New Corporate Partner',
+      description: 'Palo Alto Networks registered placement drive opportunity.',
       time: '3 hours ago',
       type: 'COMPANY',
       read: true,
@@ -77,15 +79,36 @@ function NotificationDropdown() {
     },
   ]);
 
+  useEffect(() => {
+    const fetchLiveNotifications = async () => {
+      try {
+        const res = await apiFetch('/api/notifications');
+        const result = await res.json();
+        if (result.success && result.data?.notifications?.length > 0) {
+          setNotifications(result.data.notifications);
+        }
+      } catch (err) {
+        // Fallback to initial notifications
+      }
+    };
+    fetchLiveNotifications();
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await apiFetch('/api/notifications/read-all', { method: 'PATCH' });
+    } catch (err) {}
   };
 
-  const markItemRead = (id: string, link: string) => {
+  const markItemRead = async (id: string, link: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     setOpen(false);
+    try {
+      await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+    } catch (err) {}
     navigate(link);
   };
 
@@ -183,10 +206,21 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('talentpulse_sidebar_collapsed') === 'true';
+  });
   const [signOutOpen, setSignOutOpen] = useState(false);
   const { user, logout, hasPermission } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const toggleSidebarCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('talentpulse_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   const handleLogout = async () => {
     setSignOutOpen(false);
@@ -202,7 +236,7 @@ export default function AppShell({ children }: AppShellProps) {
       show: true,
     },
     {
-      name: 'Candidates',
+      name: 'Students',
       path: '/students',
       icon: Users,
       show: hasPermission('STUDENT_READ'),
@@ -220,12 +254,6 @@ export default function AppShell({ children }: AppShellProps) {
       show: hasPermission('JOB_READ'),
     },
     {
-      name: 'Screening',
-      path: '/recruiter',
-      icon: BrainCircuit,
-      show: hasPermission('RECRUITER_READ'),
-    },
-    {
       name: 'JD Matcher',
       path: '/jd-matcher',
       icon: FileSearch,
@@ -238,12 +266,6 @@ export default function AppShell({ children }: AppShellProps) {
       show: hasPermission('REPORT_READ'),
     },
     {
-      name: 'Audit Logs',
-      path: '/audit',
-      icon: ShieldCheck,
-      show: hasPermission('AUDIT_READ'),
-    },
-    {
       name: 'Settings',
       path: '/settings',
       icon: Settings,
@@ -253,7 +275,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   const getBreadcrumb = () => {
     const path = location.pathname;
-    if (path.startsWith('/students/')) return 'Candidate Profile';
+    if (path.startsWith('/students/')) return 'Student Profile';
     if (path.startsWith('/companies/')) return 'Company Details';
     if (path.startsWith('/jobs/')) return 'Job Details';
 
@@ -287,26 +309,39 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Navigation Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 left-0 bottom-0 z-40 w-64 bg-background-secondary text-text-secondary flex flex-col border-r border-border-primary transform md:transform-none transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          }`}
+        className={`fixed md:sticky top-0 left-0 bottom-0 z-40 bg-background-secondary text-text-secondary flex flex-col border-r border-border-primary transition-all duration-300 ${
+          isCollapsed ? 'md:w-20' : 'md:w-64'
+        } w-64 transform md:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
-        {/* Logo Area — Rathinam Branding */}
+        {/* Logo Area */}
         <div className="px-4 py-4 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="p-1 bg-white rounded-lg shadow-xs flex items-center justify-center flex-shrink-0">
               <img src="/assets/talentpulse_logo.png" className="h-9 w-9 object-contain" alt="Rathinam Logo" />
             </div>
-            <div>
-              <div className="font-extrabold text-base tracking-tight text-text-primary leading-tight">TalentPulse<span className="text-primary">.ai</span></div>
-              <div className="text-[9px] text-text-muted font-bold uppercase tracking-widest">Placement Portal</div>
-            </div>
+            {!isCollapsed && (
+              <div className="truncate animate-in fade-in duration-200">
+                <div className="font-extrabold text-base tracking-tight text-text-primary leading-tight">TalentPulse<span className="text-primary">.ai</span></div>
+                <div className="text-[9px] text-text-muted font-bold uppercase tracking-widest">Placement Portal</div>
+              </div>
+            )}
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 hover:bg-surface-elevated rounded">
-            <X className="w-5 h-5 text-text-muted" />
-          </button>
+          
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleSidebarCollapse}
+              className="hidden md:flex p-1.5 hover:bg-surface-2 rounded text-text-muted hover:text-text-primary transition cursor-pointer"
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 hover:bg-surface-elevated rounded">
+              <X className="w-5 h-5 text-text-muted" />
+            </button>
+          </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
           {navItems
             .filter((item) => item.show)
             .map((item) => {
@@ -315,42 +350,48 @@ export default function AppShell({ children }: AppShellProps) {
                 <Link
                   key={item.name}
                   to={item.path}
+                  title={isCollapsed ? item.name : undefined}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded text-sm font-semibold transition duration-150 relative ${active
+                  className={`flex items-center ${isCollapsed ? 'justify-center px-0' : 'px-3.5'} py-2.5 rounded text-sm font-semibold transition duration-150 relative ${
+                    active
                       ? 'bg-gradient-primary text-white glow-primary'
                       : 'hover:bg-surface-2 hover:text-text-primary text-text-muted'
-                    }`}
+                  }`}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{item.name}</span>
+                  {!isCollapsed && <span className="ml-3 truncate">{item.name}</span>}
                 </Link>
               );
             })}
         </nav>
 
         {/* User Card & Logout */}
-        <div className="p-4 border-t border-border-primary bg-background-tertiary flex flex-col gap-2">
+        <div className="p-3 border-t border-border-primary bg-background-tertiary flex flex-col gap-2">
           {user && (
-            <div className="flex items-center gap-3 px-2 py-1.5">
-              <div className="w-9 h-9 rounded-full bg-gradient-primary flex justify-center items-center text-white font-bold text-sm glow-primary">
+            <div className={`flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-2'} py-1.5`}>
+              <div className="w-9 h-9 rounded-full bg-gradient-primary flex justify-center items-center text-white font-bold text-sm glow-primary flex-shrink-0">
                 {user.fullName.substring(0, 2).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-text-primary truncate">{user.fullName}</div>
-                <div className="text-[10px] font-bold text-primary truncate uppercase tracking-wider">{user.roleName}</div>
-              </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0 animate-in fade-in duration-200">
+                  <div className="text-xs font-bold text-text-primary truncate">{user.fullName}</div>
+                  <div className="text-[10px] font-bold text-primary truncate uppercase tracking-wider">{user.roleName}</div>
+                </div>
+              )}
             </div>
           )}
 
           <button
             onClick={() => setSignOutOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-semibold text-text-muted hover:bg-error/10 hover:text-error border border-transparent hover:border-error/20 transition duration-150 cursor-pointer"
+            title={isCollapsed ? 'Sign Out' : undefined}
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3.5'} py-2.5 rounded text-sm font-semibold text-text-muted hover:bg-error/10 hover:text-error border border-transparent hover:border-error/20 transition duration-150 cursor-pointer`}
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
-            <span>Sign Out</span>
+            {!isCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
+
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">

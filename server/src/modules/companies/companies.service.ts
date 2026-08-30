@@ -79,6 +79,18 @@ export class CompanyService {
       where: { id },
       include: {
         jobs: {
+          include: {
+            driveStudents: {
+              include: {
+                student: {
+                  include: {
+                    department: true,
+                  },
+                },
+              },
+              orderBy: { registeredAt: 'desc' },
+            },
+          },
           orderBy: { createdAt: 'desc' },
         },
         placements: {
@@ -99,6 +111,7 @@ export class CompanyService {
     if (!company) throw new AppError('Company record not found.', 404, 'COMPANY_NOT_FOUND');
     return company;
   }
+
 
   /**
    * Run Google Places search for candidate locations.

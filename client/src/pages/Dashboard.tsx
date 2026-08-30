@@ -90,17 +90,21 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchStats();
-    fetchJobs({ limit: 100 });
-    fetchPlacementsReport();
+    Promise.all([
+      fetchStats(),
+      fetchJobs({ limit: 100 }),
+      fetchPlacementsReport(),
+    ]).catch((err) => console.error('Dashboard initialization error:', err));
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchStats(true);
-      await fetchJobs({ limit: 100 });
-      await fetchPlacementsReport();
+      await Promise.all([
+        fetchStats(true),
+        fetchJobs({ limit: 100 }),
+        fetchPlacementsReport(),
+      ]);
     } catch (err) {
       console.error('Failed to refresh dashboard:', err);
     } finally {

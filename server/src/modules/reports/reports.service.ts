@@ -175,18 +175,33 @@ export class ReportsService {
     const placedList = await prisma.studentPlacementHistory.findMany({
       include: {
         student: {
-          select: { rollNumber: true, fullName: true, collegeEmail: true, department: { select: { code: true } } },
+          select: { rollNumber: true, fullName: true, collegeEmail: true, mobileNumber: true, department: { select: { code: true, name: true } } },
         },
         company: { select: { name: true, exactAddress: true } },
+        job: { select: { jobTitle: true } },
       },
       orderBy: { placedAt: 'desc' },
     });
 
     const unplacedList = await prisma.student.findMany({
-      where: { placementStatus: PlacementStatus.YET_TO_BE_PLACED },
+      where: { placementStatus: PlacementStatus.YET_TO_BE_PLACED, isDeleted: false },
       include: {
         department: true,
         academics: true,
+      },
+      orderBy: { rollNumber: 'asc' },
+    });
+
+    const overallList = await prisma.student.findMany({
+      where: { isDeleted: false },
+      include: {
+        department: true,
+        academics: true,
+        placementHistory: {
+          include: { company: true, job: true },
+          take: 1,
+          orderBy: { placedAt: 'desc' },
+        },
       },
       orderBy: { rollNumber: 'asc' },
     });
@@ -197,21 +212,55 @@ export class ReportsService {
         studentId: p.studentId,
         rollNumber: p.student.rollNumber,
         fullName: p.student.fullName,
-        department: p.student.department.code,
+        department: p.student.department?.code || 'CSE',
+        departmentName: p.student.department?.name || 'Computer Science',
+        email: p.student.collegeEmail,
+        mobileNumber: p.student.mobileNumber,
         companyName: p.company.name,
-        location: p.company.exactAddress || 'N/A',
+        role: p.job?.jobTitle || 'Software Engineer',
+        location: p.company.exactAddress || 'HQ India',
         ctc: p.ctc,
         date: p.placedAt,
+        status: p.status || 'OFFERED',
       })),
       unplaced: unplacedList.map((u) => ({
         id: u.id,
         studentId: u.id,
         rollNumber: u.rollNumber,
         fullName: u.fullName,
-        department: u.department.code,
+        department: u.department?.code || 'CSE',
+        departmentName: u.department?.name || 'Computer Science',
         email: u.collegeEmail,
+        mobileNumber: u.mobileNumber,
+        sslcPercentage: u.academics?.sslcPercentage || 0,
+        hscPercentage: u.academics?.hscPercentage || 0,
         ugPercentage: u.academics?.ugPercentage || 0,
+        placementStatus: u.placementStatus,
       })),
+      overall: overallList.map((o) => {
+        const lastPlacement = o.placementHistory[0];
+        return {
+          id: o.id,
+          studentId: o.id,
+          rollNumber: o.rollNumber,
+          fullName: o.fullName,
+          department: o.department?.code || 'CSE',
+          departmentName: o.department?.name || 'Computer Science',
+          gender: o.gender,
+          hostelStatus: o.hostelStatus,
+          personalEmail: o.personalEmail,
+          collegeEmail: o.collegeEmail,
+          mobileNumber: o.mobileNumber,
+          sslcPercentage: o.academics?.sslcPercentage || 0,
+          hscPercentage: o.academics?.hscPercentage || 0,
+          ugPercentage: o.academics?.ugPercentage || 0,
+          pgPercentage: o.academics?.pgPercentage || null,
+          placementStatus: o.placementStatus,
+          placedCompany: lastPlacement?.company?.name || '—',
+          placedRole: lastPlacement?.job?.jobTitle || '—',
+          ctc: lastPlacement?.ctc || null,
+        };
+      }),
     };
   }
 

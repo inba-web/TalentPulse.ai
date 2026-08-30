@@ -5,6 +5,8 @@ import { useCompanyStore } from '../store/companyStore';
 import StatusBadge from '../components/StatusBadge';
 import { Search, Plus, MapPin, Globe, Mail, Phone, X, Check, Loader2, Eye, Edit2, Trash2, Building2, RefreshCw, FileText, ChevronDown, ChevronUp, Users, Award, Upload } from 'lucide-react';
 import DriveManagementModal from '../components/DriveManagementModal';
+import JdPdfViewerModal from '../components/JdPdfViewerModal';
+import ExcelImportModal from '../components/ExcelImportModal';
 import { useAuthStore } from '../store/authStore';
 import { useJobStore } from '../store/jobStore';
 import { useNavigate } from 'react-router-dom';
@@ -77,6 +79,9 @@ export default function CompaniesPage() {
       limit: 10,
     });
   }, [search, status, industryFilter, employeeSizeTier, page]);
+
+  // Excel Import state
+  const [excelImportOpen, setExcelImportOpen] = useState(false);
 
   // Creation form state
   const [createOpen, setCreateOpen] = useState(false);
@@ -447,6 +452,15 @@ export default function CompaniesPage() {
           </button>
           {hasPermission('COMPANY_CREATE') && (
             <button
+              onClick={() => setExcelImportOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 border border-border-primary hover:border-primary text-text-primary text-xs font-semibold rounded bg-surface-1 hover:bg-surface-2 transition cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5 text-primary" />
+              <span>Import Excel</span>
+            </button>
+          )}
+          {hasPermission('COMPANY_CREATE') && (
+            <button
               onClick={() => setCreateOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary border-0 transition cursor-pointer"
             >
@@ -560,9 +574,9 @@ export default function CompaniesPage() {
                       }}
                       className="px-2.5 py-1 bg-surface-2 border border-border-primary rounded text-xs font-bold text-text-primary outline-none cursor-pointer focus:border-primary hover:border-border-hover transition"
                     >
-                      <option value="COLD">Cold Pipeline</option>
-                      <option value="WARM">Warm Pipeline</option>
-                      <option value="HOT">Hot Opportunity</option>
+                      <option value="COLD">Cold</option>
+                      <option value="WARM">Warm</option>
+                      <option value="HOT">Hot</option>
                       <option value="DRIVE_COMPLETED">Drive Completed</option>
                     </select>
                   ) : (
@@ -1559,11 +1573,18 @@ export default function CompaniesPage() {
           </div>
         </div>
       )}
-      {/* Drive Candidates Management Dashboard Modal */}
+      {/* Drive Student Management Dashboard Modal */}
       <DriveManagementModal
         isOpen={driveModalOpen}
         job={activeDriveJob}
         onClose={() => setDriveModalOpen(false)}
+      />
+
+      {/* Excel Company Import Modal */}
+      <ExcelImportModal
+        isOpen={excelImportOpen}
+        onClose={() => setExcelImportOpen(false)}
+        onSuccess={() => fetchCompanies({ page: 1 })}
       />
     </div>
   );

@@ -155,4 +155,134 @@ export class CompanyController {
       data: industries,
     });
   });
+
+  public static importCompanies = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.file) {
+      throw new AppError('Excel file is required for import.', 400, 'FILE_REQUIRED');
+    }
+
+    const xlsx = require('xlsx');
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+      throw new AppError('No worksheets found in uploaded Excel file.', 400, 'INVALID_EXCEL');
+    }
+
+    const worksheet = workbook.Sheets[sheetName];
+    const rows: any[] = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+
+    if (!rows || rows.length === 0) {
+      throw new AppError('The Excel worksheet is empty.', 400, 'EMPTY_FILE');
+    }
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    const errorDetails: { row: number; companyName: string; reason: string }[] = [];
+
+    for (let idx = 0; idx < rows.length; idx++) {
+      const row = rows[idx];
+      const rowNumber = idx + 2; // 1-indexed header offset
+
+      // Flexible column key resolution
+      const getVal = (keys: string[]) => {
+        for (const k of keys) {
+          const match = Object.keys(row).find(
+            (rk) => rk.toLowerCase().trim().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, '')
+          );
+          if (match && row[match] !== undefined && row[match] !== null && String(row[match]).trim() !== '') {
+            return String(row[match]).trim();
+          }
+        }
+        return '';
+      };
+
+      const name = getVal(['Company Name', 'CompanyName', 'Company', 'Name', 'Organization']);
+      if (!name) {
+        skippedCount++;
+        errorDetails.push({ row: rowNumber, companyName: 'Unknown', reason: 'Missing mandatory Company Name' });
+        continue;
+      }
+
+      const website = getVal(['Website', 'URL', 'Web', 'Company Website']) || null;
+      const industry = getVal(['Industry', 'Sector', 'Domain']) || 'Corporate Partner';
+      const contactPerson = getVal(['Contact Person', 'Recruiter Name', 'HR Name', 'Contact', 'Person']) || 'HR Manager';
+      const designation = getVal(['Designation', 'Title', 'Role', 'Contact Designation']) || 'Talent Acquisition Lead';
+      const contactEmail = getVal(['Contact Email', 'Email', 'HR Email', 'Email Address']) || `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@talentpulse.ai`;
+      const contactMobile = getVal(['Contact Mobile', 'Mobile', 'Phone', 'Contact Number']) || '9876543210';
+      const exactAddress = getVal(['Address', 'Location', 'Headquarters', 'HQ', 'City', 'Place']) || null;
+      
+      const rawStatus = getVal(['Status', 'Pipeline', 'Company Status']).toUpperCase();
+      let status: OpportunityStatus = OpportunityStatus.COLD;
+      if (rawStatus.includes('HOT')) status = OpportunityStatus.HOT;
+      else if (rawStatus.includes('WARM')) status = OpportunityStatus.WARM;
+      else if (rawStatus.includes('DRIVE') || rawStatus.includes('COMPLETED')) status = OpportunityStatus.DRIVE_COMPLETED;
+      else if (rawStatus.includes('COLD')) status = OpportunityStatus.COLD;
+
+      const empSizeVal = parseInt(getVal(['Employee Size', 'Size', 'Employees', 'Company Size']));
+      const employeeSize = !isNaN(empSizeVal) && empSizeVal > 0 ? empSizeVal : 250;
+
+      try {
+        const existing = await prisma.company.findFirst({
+          where: {
+            OR: [
+              { name: { equals: name, mode: 'insensitive' } },
+              { contactEmail: { equals: contactEmail, mode: 'insensitive' } },
+            ],
+          },
+        });
+
+        if (existing) {
+          await prisma.company.update({
+            where: { id: existing.id },
+            data: {
+              website: website || existing.website,
+              industry: industry || existing.industry,
+              contactPerson: contactPerson || existing.contactPerson,
+              designation: designation || existing.designation,
+              contactEmail: contactEmail || existing.contactEmail,
+              contactMobile: contactMobile || existing.contactMobile,
+              exactAddress: exactAddress || existing.exactAddress,
+              status,
+              employeeSize,
+            },
+          });
+          updatedCount++;
+        } else {
+          await prisma.company.create({
+            data: {
+              name,
+              website,
+              industry,
+              contactPerson,
+              designation,
+              contactEmail,
+              contactMobile,
+              exactAddress,
+              status,
+              employeeSize,
+            },
+          });
+          createdCount++;
+        }
+      } catch (err: any) {
+        skippedCount++;
+        errorDetails.push({ row: rowNumber, companyName: name, reason: err.message || 'Database write error' });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRows: rows.length,
+        validRows: createdCount + updatedCount,
+        invalidRows: skippedCount,
+        createdCount,
+        updatedCount,
+        skippedCount,
+        errorDetails,
+      },
+    });
+  });
 }
+

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ConfirmDialog from '../components/ConfirmDialog';
+import StudentAvatar from '../components/StudentAvatar';
 
 type TabType = 'ALL' | 'TERMINATED' | 'DELETED';
 
@@ -275,7 +276,7 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Candidates</h1>
+          <h1 className="text-xl font-extrabold text-text-primary tracking-tight">Students</h1>
           <p className="text-xs text-text-muted mt-1">Filter and manage student academic benchmarks and directory records.</p>
         </div>
 
@@ -452,18 +453,7 @@ export default function StudentsPage() {
                   >
                     <td className="px-6 py-4 font-semibold text-text-primary">
                       <div className="flex items-center gap-3">
-                        {(student as any).studentPhotoUrl ? (
-                          <img
-                            src={formatImageUrl((student as any).studentPhotoUrl)}
-                            className="w-8 h-8 rounded-full object-cover border border-primary/30 flex-shrink-0"
-                            alt={student.fullName}
-                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            {student.fullName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <StudentAvatar name={student.fullName} photoUrl={(student as any).studentPhotoUrl} size="sm" />
                         <span>{student.fullName}</span>
                       </div>
                     </td>

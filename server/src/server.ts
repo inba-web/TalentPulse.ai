@@ -56,7 +56,48 @@ async function runSchemaMigrations() {
       CREATE INDEX IF NOT EXISTS "CompanyArchive_deletedAt_idx" ON "CompanyArchive"("deletedAt");
     `);
 
+    // Create Notification table if not exists
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Notification" (
+        "id"          TEXT NOT NULL,
+        "title"       TEXT NOT NULL,
+        "description" TEXT NOT NULL,
+        "type"        TEXT NOT NULL,
+        "read"        BOOLEAN NOT NULL DEFAULT false,
+        "link"        TEXT NOT NULL,
+        "targetRole"  "RoleName",
+        "userId"      TEXT,
+        "createdAt"   DateTime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+      );
+    `).catch(async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Notification" (
+          "id"          TEXT NOT NULL,
+          "title"       TEXT NOT NULL,
+          "description" TEXT NOT NULL,
+          "type"        TEXT NOT NULL,
+          "read"        BOOLEAN NOT NULL DEFAULT false,
+          "link"        TEXT NOT NULL,
+          "targetRole"  TEXT,
+          "userId"      TEXT,
+          "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+        );
+      `);
+    });
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "Notification_userId_idx" ON "Notification"("userId");
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "Notification_targetRole_idx" ON "Notification"("targetRole");
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "Notification_createdAt_idx" ON "Notification"("createdAt");
+    `);
+
     // Purge legacy static ATS analysis cache so dynamic score engine recalculates per candidate
+
     await prisma.aTSAnalysis.deleteMany({});
     logger.info('Purged legacy static ATS score cache.');
 
