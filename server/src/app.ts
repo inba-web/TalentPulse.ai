@@ -19,6 +19,7 @@ import searchRouter from './modules/search/search.routes';
 import auditRouter from './modules/audit/audit.routes';
 import drivesRouter from './modules/drives/drives.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
+import adminRouter from './modules/admin/admin.routes';
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/search', searchRouter);
 app.use('/api/audit-logs', auditRouter);
 app.use('/api/drives', drivesRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/admin', adminRouter);
 
 // Fallback 404
 app.use((req, res) => {

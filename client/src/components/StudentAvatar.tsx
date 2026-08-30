@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatImageUrl } from '../utils/formatImageUrl';
 
 interface StudentAvatarProps {
@@ -10,6 +10,10 @@ interface StudentAvatarProps {
 
 export default function StudentAvatar({ name, photoUrl, size = 'md', className = '' }: StudentAvatarProps) {
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [photoUrl]);
 
   const getInitials = (fullName: string) => {
     if (!fullName) return 'ST';

@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 import AppShell from './components/AppShell';
 
 // Lazy loaded Pages
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StudentsPage = lazy(() => import('./pages/StudentsPage'));
@@ -58,9 +59,12 @@ function App() {
     <BrowserRouter>
       <Suspense fallback={<PageFallback />}>
         <Routes>
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+
           {/* Auth routes */}
           <Route path="/login" element={<LoginPage />} />
-          
+
           {/* Protected Dashboard routes */}
           <Route
             path="/dashboard"
@@ -128,7 +132,7 @@ function App() {
           />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

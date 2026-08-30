@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { useAuthStore } from '../store/authStore';
-import { UserPlus, Shield, Mail, User, Key, Loader2, RefreshCw, Settings } from 'lucide-react';
+import { UserPlus, Shield, Mail, User, Key, Loader2, RefreshCw, Settings, Trash2, Database, ShieldAlert } from 'lucide-react';
+import ResetDataModal from '../components/ResetDataModal';
 
 export default function SettingsPage() {
   const { user: currentUser, updateProfile, changePassword } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Reset Modal State
+  const [resetModalOpen, setResetModalOpen] = useState(false);
 
   // Profile Update State
   const [profileName, setProfileName] = useState(currentUser?.fullName || '');
@@ -292,161 +296,191 @@ export default function SettingsPage() {
 
         {/* Administrative Sections (Admins Only) */}
         {isAdmin && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-border-primary">
-            {/* Left Column: Create User Form */}
-            <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">
-              <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-primary" />
-                <span>Create Administrative User</span>
-              </h3>
-
-              <form onSubmit={handleCreateUser} className="space-y-4">
-                {message && (
-                  <div className={`p-3 rounded border text-xs ${
-                    message.type === 'success' 
-                      ? 'bg-success/10 border-success/20 text-success' 
-                      : 'bg-error/10 border-error/20 text-error'
-                  }`}>
-                    {message.text}
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
-                    <User className="w-3.5 h-3.5" /> Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. John Doe"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5" /> Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. john@talentpulse.ai"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
-                    <Key className="w-3.5 h-3.5" /> Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Minimum 8 chars with uppercase, digit, symbol"
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5" /> Assign Role Name
-                  </label>
-                  <select
-                    className="w-full h-10 px-3 border border-border-primary rounded text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
-                    value={roleName}
-                    onChange={(e) => setRoleName(e.target.value)}
-                  >
-                    <option value="ADMIN">ADMIN (Full Governance)</option>
-                    <option value="MANAGER">MANAGER (Academic & Candidates)</option>
-                    <option value="LEAD">LEAD (Companies & Job Postings)</option>
-                    <option value="RECRUITER">RECRUITER (Screening & ATS Evaluations)</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={formLoading}
-                  className="w-full h-10 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs rounded transition flex items-center justify-center gap-2 glow-primary border-0 cursor-pointer"
-                >
-                  {formLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>Provision User Account</span>
-                  )}
-                </button>
-              </form>
+          <div className="space-y-6 pt-4 border-t border-border-primary">
+            
+            {/* Data Management & Reset Card */}
+            <div className="bg-surface-1 p-6 rounded-lg border border-error/30 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-error uppercase tracking-wider flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-error" />
+                  <span>Data Management &amp; Complete Reset</span>
+                </h3>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Permanently remove all placement-related business data (Students, Companies, Jobs, Drives, Placements, ATS Analyses).
+                  System users, RBAC roles, and application settings remain untouched.
+                </p>
+              </div>
+              <button
+                onClick={() => setResetModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-error hover:bg-error/90 text-white font-extrabold text-xs rounded transition shadow-md cursor-pointer flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Reset Placement Data</span>
+              </button>
             </div>
 
-            {/* Right Columns: Users Catalog */}
-            <div className="lg:col-span-2 bg-surface-1 p-6 rounded border border-border-primary space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">System Users Directory</h3>
-                <button
-                  onClick={() => fetchUsers(true)}
-                  disabled={refreshing}
-                  className="p-1.5 border border-border-primary hover:border-border-hover rounded text-text-secondary hover:text-text-primary transition cursor-pointer bg-transparent"
-                >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Create User Form */}
+              <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">
+                <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-primary" />
+                  <span>Create Administrative User</span>
+                </h3>
+
+                <form onSubmit={handleCreateUser} className="space-y-4">
+                  {message && (
+                    <div className={`p-3 rounded border text-xs ${
+                      message.type === 'success' 
+                        ? 'bg-success/10 border-success/20 text-success' 
+                        : 'bg-error/10 border-error/20 text-error'
+                    }`}>
+                      {message.text}
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
+                      <User className="w-3.5 h-3.5" /> Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. John Doe"
+                      className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5" /> Email Address
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. john@talentpulse.ai"
+                      className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
+                      <Key className="w-3.5 h-3.5" /> Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Minimum 8 chars with uppercase, digit, symbol"
+                      className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5" /> Assign Role Name
+                    </label>
+                    <select
+                      className="w-full h-10 px-3 border border-border-primary rounded text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+                      value={roleName}
+                      onChange={(e) => setRoleName(e.target.value)}
+                    >
+                      <option value="ADMIN">ADMIN (Full Governance)</option>
+                      <option value="MANAGER">MANAGER (Academic & Candidates)</option>
+                      <option value="LEAD">LEAD (Companies & Job Postings)</option>
+                      <option value="RECRUITER">RECRUITER (Screening & ATS Evaluations)</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={formLoading}
+                    className="w-full h-10 bg-gradient-primary hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs rounded transition flex items-center justify-center gap-2 glow-primary border-0 cursor-pointer"
+                  >
+                    {formLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span>Provision User Account</span>
+                    )}
+                  </button>
+                </form>
               </div>
 
-              {loading ? (
-                <div className="text-center py-20 text-text-secondary">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-                  <span>Fetching user records...</span>
+              {/* Right Columns: Users Catalog */}
+              <div className="lg:col-span-2 bg-surface-1 p-6 rounded border border-border-primary space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">System Users Directory</h3>
+                  <button
+                    onClick={() => fetchUsers(true)}
+                    disabled={refreshing}
+                    className="p-1.5 border border-border-primary hover:border-border-hover rounded text-text-secondary hover:text-text-primary transition cursor-pointer bg-transparent"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  </button>
                 </div>
-              ) : users.length === 0 ? (
-                <div className="text-center py-20 text-text-secondary">
-                  No registered user records found.
-                </div>
-              ) : (
-                <div className="border border-border-primary rounded overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-background-tertiary border-b border-border-primary text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                          <th className="px-6 py-4">Full Name</th>
-                          <th className="px-6 py-4">Email</th>
-                          <th className="px-6 py-4">System Role</th>
-                          <th className="px-6 py-4 text-right">Created Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-primary text-xs text-text-secondary">
-                        {users.map((u) => (
-                          <tr key={u.id} className="hover:bg-surface-2 transition duration-150">
-                            <td className="px-6 py-4 font-bold text-text-primary">{u.fullName}</td>
-                            <td className="px-6 py-4 font-mono">{u.email}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
-                                u.roleName === 'ADMIN' 
-                                  ? 'bg-success/10 border-success/20 text-success'
-                                  : u.roleName === 'LEAD'
-                                  ? 'bg-primary/10 border-primary/20 text-primary'
-                                  : 'bg-warning/10 border-warning/20 text-warning'
-                              }`}>
-                                {u.roleName}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right text-text-muted">
-                              {new Date(u.createdAt).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+
+                {loading ? (
+                  <div className="text-center py-20 text-text-secondary">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
+                    <span>Fetching user records...</span>
                   </div>
-                </div>
-              )}
+                ) : users.length === 0 ? (
+                  <div className="text-center py-20 text-text-secondary">
+                    No registered user records found.
+                  </div>
+                ) : (
+                  <div className="border border-border-primary rounded overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-background-tertiary border-b border-border-primary text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                            <th className="px-6 py-4">Full Name</th>
+                            <th className="px-6 py-4">Email</th>
+                            <th className="px-6 py-4">System Role</th>
+                            <th className="px-6 py-4 text-right">Created Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-primary text-xs text-text-secondary">
+                          {users.map((u) => (
+                            <tr key={u.id} className="hover:bg-surface-2 transition duration-150">
+                              <td className="px-6 py-4 font-bold text-text-primary">{u.fullName}</td>
+                              <td className="px-6 py-4 font-mono">{u.email}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
+                                  u.roleName === 'ADMIN' 
+                                    ? 'bg-success/10 border-success/20 text-success'
+                                    : u.roleName === 'LEAD'
+                                    ? 'bg-primary/10 border-primary/20 text-primary'
+                                    : 'bg-warning/10 border-warning/20 text-warning'
+                                }`}>
+                                  {u.roleName}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right text-text-muted">
+                                {new Date(u.createdAt).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Reset Data Confirmation Modal */}
+      <ResetDataModal
+        isOpen={resetModalOpen}
+        onClose={() => setResetModalOpen(false)}
+      />
     </div>
   );
 }

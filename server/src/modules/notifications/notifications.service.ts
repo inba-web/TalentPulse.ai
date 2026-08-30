@@ -22,29 +22,31 @@ export class NotificationService {
   }
 
   /**
-   * Mark single notification read.
+   * Permanently erase single notification upon read/dismiss.
    */
   public static async markRead(notificationId: string) {
-    return prisma.notification.update({
-      where: { id: notificationId },
-      data: { read: true },
-    });
+    try {
+      return await prisma.notification.delete({
+        where: { id: notificationId },
+      });
+    } catch (err) {
+      // If already deleted, return silently
+      return null;
+    }
   }
 
   /**
-   * Mark all notifications read for user/role.
+   * Permanently erase all notifications for user/role upon Mark All Read.
    */
   public static async markAllRead(userId: string, roleName: RoleName) {
-    return prisma.notification.updateMany({
+    return prisma.notification.deleteMany({
       where: {
         OR: [
           { userId },
           { targetRole: roleName },
           { targetRole: null, userId: null },
         ],
-        read: false,
       },
-      data: { read: true },
     });
   }
 

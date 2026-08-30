@@ -498,6 +498,21 @@ async function runSchemaMigrations() {
     });
 
     if (paloAlto && swetha) {
+      let job = paloAlto.jobs[0];
+      if (!job) {
+        job = await prisma.job.create({
+          data: {
+            companyId: paloAlto.id,
+            jobTitle: 'Cyber Security Analyst',
+            jdText: 'Security Engineer & Threat Analysis Role',
+            ctc: 24.0,
+            location: 'Bengaluru',
+            status: 'APPROVED',
+            createdById: (await prisma.user.findFirst({ where: { roleName: 'ADMIN' } }))?.id || 'admin-id',
+          },
+        });
+      }
+
       await prisma.student.update({
         where: { id: swetha.id },
         data: { placementStatus: 'PLACED' },
@@ -508,7 +523,7 @@ async function runSchemaMigrations() {
           id: `placement-24lpa-${swetha.id}`,
           studentId: swetha.id,
           companyId: paloAlto.id,
-          jobId: paloAlto.jobs[0]?.id,
+          jobId: job.id,
           ctc: 24.0,
           status: 'JOINED',
         },
@@ -517,6 +532,21 @@ async function runSchemaMigrations() {
     }
 
     if (google && vignesh) {
+      let job = google.jobs[0];
+      if (!job) {
+        job = await prisma.job.create({
+          data: {
+            companyId: google.id,
+            jobTitle: 'Software Engineer',
+            jdText: 'Full Stack & Systems Development Engineer',
+            ctc: 20.0,
+            location: 'Hyderabad',
+            status: 'APPROVED',
+            createdById: (await prisma.user.findFirst({ where: { roleName: 'ADMIN' } }))?.id || 'admin-id',
+          },
+        });
+      }
+
       await prisma.student.update({
         where: { id: vignesh.id },
         data: { placementStatus: 'PLACED' },
@@ -527,7 +557,7 @@ async function runSchemaMigrations() {
           id: `placement-20lpa-${vignesh.id}`,
           studentId: vignesh.id,
           companyId: google.id,
-          jobId: google.jobs[0]?.id,
+          jobId: job.id,
           ctc: 20.0,
           status: 'OFFERED',
         },

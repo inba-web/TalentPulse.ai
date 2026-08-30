@@ -10,7 +10,7 @@ import * as THREE from 'three';
 // 3D Particles Constellation Component (self-contained, no external math dependencies)
 function ParticleBackground() {
   const ref = useRef<THREE.Points>(null);
-  
+
   // Generate random coordinates inside a sphere
   const [positions] = useState(() => {
     const arr = new Float32Array(1500 * 3);
@@ -20,7 +20,7 @@ function ParticleBackground() {
       const theta = u * 2.0 * Math.PI;
       const phi = Math.acos(2.0 * v - 1.0);
       const r = Math.cbrt(Math.random()) * 2.5; // Radius up to 2.5
-      
+
       arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       arr[i * 3 + 2] = r * Math.cos(phi);
@@ -89,7 +89,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen bg-background flex items-center justify-center overflow-hidden px-4">
-      
+
       {/* 3D WebGL Canvas Layer (Falls back to CSS animations if WebGL fails) */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={
@@ -106,11 +106,11 @@ export default function LoginPage() {
 
       {/* Solid Enterprise Login Form Wrapper */}
       <div className="relative w-full max-w-md bg-surface-1 border border-border-primary rounded p-8 z-20 overflow-hidden flex flex-col items-center shadow-lg">
-        
+
         {/* Brand header — large prominent logo */}
         <div className="flex flex-col items-center gap-3 mb-6">
           <div className="p-3 bg-white rounded-2xl border border-border-primary shadow-md flex items-center justify-center">
-            <img src="/assets/talentpulse_logo.png" className="w-24 h-24 object-contain" alt="Rathinam Logo" />
+            <img src="/assets/rathinam_logo.png" className="w-24 h-auto object-contain" alt="Rathinam Logo" />
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">TalentPulse<span className="text-primary">.ai</span></h1>

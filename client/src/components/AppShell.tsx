@@ -97,14 +97,14 @@ function NotificationDropdown() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications([]);
     try {
       await apiFetch('/api/notifications/read-all', { method: 'PATCH' });
     } catch (err) {}
   };
 
   const markItemRead = async (id: string, link: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
     setOpen(false);
     try {
       await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
@@ -290,7 +290,7 @@ export default function AppShell({ children }: AppShellProps) {
       <header className="md:hidden flex justify-between items-center bg-surface-2 text-text-primary px-4 h-16 border-b border-border-secondary">
         <div className="flex items-center gap-2.5">
           <div className="p-0.5 bg-white rounded flex items-center justify-center">
-            <img src="/assets/talentpulse_logo.png" className="h-7 w-7 object-contain" alt="Rathinam Logo" />
+            <img src="/assets/rathinam_logo.png" className="h-7 w-auto object-contain" alt="Rathinam Logo" />
           </div>
           <span className="font-extrabold text-lg tracking-tight text-text-primary">TalentPulse<span className="text-primary">.ai</span></span>
         </div>
@@ -317,7 +317,7 @@ export default function AppShell({ children }: AppShellProps) {
         <div className="px-4 py-4 border-b border-border-primary flex justify-between items-center bg-background-tertiary">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="p-1 bg-white rounded-lg shadow-xs flex items-center justify-center flex-shrink-0">
-              <img src="/assets/talentpulse_logo.png" className="h-9 w-9 object-contain" alt="Rathinam Logo" />
+              <img src="/assets/rathinam_logo.png" className="h-9 w-auto object-contain" alt="Rathinam Logo" />
             </div>
             {!isCollapsed && (
               <div className="truncate animate-in fade-in duration-200">

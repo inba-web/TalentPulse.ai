@@ -16,5 +16,15 @@ export function formatImageUrl(url?: string | null): string {
     }
   }
 
+  // Handle local upload paths
+  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
+    const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    const isDev = (import.meta as any).env?.DEV || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+    if (isDev) {
+      return `http://localhost:5000${cleanPath}`;
+    }
+    return cleanPath;
+  }
+
   return trimmed;
 }

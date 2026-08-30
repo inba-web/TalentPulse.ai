@@ -6,6 +6,7 @@ import { useStudentStore } from '../store/studentStore';
 import StatusBadge from '../components/StatusBadge';
 import { useAuthStore } from '../store/authStore';
 import ConfirmDialog from '../components/ConfirmDialog';
+import StudentAvatar from '../components/StudentAvatar';
 import {
   User,
   Mail,
@@ -290,21 +291,7 @@ export default function StudentProfilePage() {
       {/* Profile Header */}
       <div className="bg-surface-1 p-6 rounded border border-border-primary flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-5">
-          {student.studentPhotoUrl ? (
-            <img
-              src={formatImageUrl(student.studentPhotoUrl)}
-              className="w-20 h-20 rounded-full object-cover border-2 border-primary/40 shadow-md flex-shrink-0"
-              alt={`${student.fullName} profile photo`}
-              onError={(e) => {
-                // If Google Drive permissions or image fails to load, fallback gracefully
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-primary border-2 border-primary/40 flex justify-center items-center text-white text-2xl font-extrabold flex-shrink-0 glow-primary">
-              {student.fullName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <StudentAvatar name={student.fullName} photoUrl={student.studentPhotoUrl} size="xl" />
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-text-primary">{student.fullName}</h1>
@@ -757,41 +744,51 @@ export default function StudentProfilePage() {
             <div className="pt-4 border-t border-border-primary space-y-2">
               <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Resume Documents</div>
               {resumesList.length === 0 ? (
-                <div className="text-[11px] text-text-disabled italic">No resume documents uploaded.</div>
+                <div className="text-xs text-text-muted font-medium py-2 px-3 bg-surface-2/40 border border-dashed border-border-primary rounded">
+                  Resume not provided
+                </div>
               ) : (
-                resumesList.map((resume: any, idx: number) => (
-                  <a
-                    key={resume.id}
-                    href={resume.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-between p-2 rounded border border-border-primary hover:bg-surface-2 transition duration-150 text-xs font-bold text-text-primary cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-primary" />
-                      <span>Resume (Version {resumesList.length - idx})</span>
-                    </span>
-                    <Download className="w-4 h-4 text-text-muted" />
-                  </a>
-                ))
+                resumesList.map((resume: any, idx: number) => {
+                  const cleanFilename = `${student.fullName.trim().replace(/\s+/g, '_')}_Resume${resumesList.length > 1 ? `_v${resumesList.length - idx}` : ''}.pdf`;
+                  return (
+                    <div
+                      key={resume.id}
+                      className="flex items-center justify-between p-2.5 rounded border border-border-primary bg-background-secondary text-xs font-semibold text-text-primary"
+                    >
+                      <span className="flex items-center gap-2 font-mono truncate max-w-[180px]" title={cleanFilename}>
+                        <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span className="truncate">{cleanFilename}</span>
+                      </span>
+                      <a
+                        href={resume.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </a>
+                    </div>
+                  );
+                })
               )}
             </div>
 
             {/* Social profiles and Links */}
             <div className="pt-4 border-t border-border-primary space-y-2">
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Social & Portfolios</div>
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Social &amp; Portfolios</div>
               {student.links?.githubUrl && (
                 <a
                   href={student.links.githubUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between p-2 rounded border border-border-primary hover:bg-surface-2 transition duration-150 text-xs font-bold text-text-primary cursor-pointer"
+                  className="flex items-center justify-between p-2.5 rounded border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-xs font-bold text-slate-200 transition cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Github className="w-4 h-4" />
+                    <Github className="w-4 h-4 text-white" />
                     <span>GitHub Profile</span>
                   </span>
-                  <Globe className="w-4 h-4 text-text-muted" />
+                  <Globe className="w-3.5 h-3.5 text-slate-400" />
                 </a>
               )}
               {student.links?.linkedinUrl && (
@@ -799,13 +796,13 @@ export default function StudentProfilePage() {
                   href={student.links.linkedinUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between p-2 rounded border border-border-primary hover:bg-surface-2 transition duration-150 text-xs font-bold text-text-primary cursor-pointer"
+                  className="flex items-center justify-between p-2.5 rounded border border-[#0A66C2]/30 bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 text-xs font-bold text-[#0A66C2] transition cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Linkedin className="w-4 h-4 text-primary" />
+                    <Linkedin className="w-4 h-4 text-[#0A66C2]" />
                     <span>LinkedIn Profile</span>
                   </span>
-                  <Globe className="w-4 h-4 text-text-muted" />
+                  <Globe className="w-3.5 h-3.5 text-[#0A66C2]" />
                 </a>
               )}
               {student.links?.portfolioUrl && (
@@ -813,14 +810,19 @@ export default function StudentProfilePage() {
                   href={student.links.portfolioUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between p-2 rounded border border-border-primary hover:bg-surface-2 transition duration-150 text-xs font-bold text-text-primary cursor-pointer"
+                  className="flex items-center justify-between p-2.5 rounded border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-bold text-emerald-400 transition cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-success" />
+                    <Globe className="w-4 h-4 text-emerald-400" />
                     <span>Portfolio Website</span>
                   </span>
-                  <Globe className="w-4 h-4 text-text-muted" />
+                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
                 </a>
+              )}
+              {!student.links?.githubUrl && !student.links?.linkedinUrl && !student.links?.portfolioUrl && (
+                <div className="text-xs text-text-muted font-medium py-2 px-3 bg-surface-2/40 border border-dashed border-border-primary rounded">
+                  No social profiles linked
+                </div>
               )}
             </div>
           </div>

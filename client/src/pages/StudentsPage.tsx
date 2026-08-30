@@ -6,11 +6,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge';
 import {
   Search, Upload, Loader2, FileSpreadsheet, X, AlertCircle,
-  Edit2, Trash2, XOctagon, CheckCircle, Eye, RefreshCw, RotateCcw, Users, UserX, Undo2, Video
+  Edit2, Trash2, XOctagon, CheckCircle, Eye, RefreshCw, RotateCcw, Users, UserX, Undo2, Video, Plus, FileText, Globe
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StudentAvatar from '../components/StudentAvatar';
+import StudentFormModal from '../components/StudentFormModal';
 
 type TabType = 'ALL' | 'TERMINATED' | 'DELETED';
 
@@ -71,6 +72,10 @@ export default function StudentsPage() {
     }
   };
 
+  // Form Modal controls
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [formStudent, setFormStudent] = useState<any>(null);
+
   // Modal controls
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -118,24 +123,8 @@ export default function StudentsPage() {
   const [depts, setDepts] = useState<any[]>([]);
 
   const handleOpenEdit = (student: any) => {
-    setEditingStudent(student);
-    setEditFullName(student.fullName);
-    setEditDeptId(student.departmentId || '');
-    setEditGender(student.gender);
-    setEditHostelStatus(student.hostelStatus);
-    setEditPersonalEmail(student.personalEmail);
-    setEditCollegeEmail(student.collegeEmail);
-    setEditMobileNumber(student.mobileNumber);
-    setEditGraduationDate(student.graduationDate ? new Date(student.graduationDate).toISOString().split('T')[0] : '');
-    setEditSslc(student.academics?.sslcPercentage ? String(student.academics.sslcPercentage) : '');
-    setEditHsc(student.academics?.hscPercentage ? String(student.academics.hscPercentage) : '');
-    setEditUg(student.academics?.ugPercentage ? String(student.academics.ugPercentage) : '');
-    setEditPg(student.academics?.pgPercentage ? String(student.academics.pgPercentage) : '');
-    setEditGithub(student.links?.githubUrl || '');
-    setEditLinkedin(student.links?.linkedinUrl || '');
-    setEditPortfolio(student.links?.portfolioUrl || '');
-    setEditSelfIntroVideo(student.selfIntroVideoUrl || '');
-    setEditOpen(true);
+    setFormStudent(student);
+    setFormModalOpen(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -289,6 +278,18 @@ export default function StudentsPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
+          {hasPermission('STUDENT_CREATE') && (
+            <button
+              onClick={() => {
+                setFormStudent(null);
+                setFormModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded glow-primary border-0 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Student</span>
+            </button>
+          )}
           {hasPermission('STUDENT_IMPORT') && (
             <button
               onClick={() => {
@@ -299,7 +300,7 @@ export default function StudentsPage() {
               className="flex items-center gap-2 px-4 py-2.5 border border-border-primary bg-surface-1 text-text-primary hover:border-border-hover text-xs font-semibold rounded transition duration-150 cursor-pointer"
             >
               <Upload className="w-4 h-4" />
-              <span>Import spreadsheet</span>
+              <span>Import Excel</span>
             </button>
           )}
         </div>
@@ -905,6 +906,14 @@ export default function StudentsPage() {
         confirmText="Revoke & Reinstate"
         type="info"
         loading={revokeLoading}
+      />
+
+      {/* Student Add & Edit Form Modal */}
+      <StudentFormModal
+        isOpen={formModalOpen}
+        student={formStudent}
+        onClose={() => setFormModalOpen(false)}
+        onSuccess={() => fetchStudents({ page: 1, limit: 10 })}
       />
     </div>
   );

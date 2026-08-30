@@ -111,7 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response = await fetch('/api/auth/refresh', { method: 'POST' });
       const result = await response.json();
-      
+
       if (result.success) {
         set({
           user: result.data.user,
@@ -120,7 +120,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         return result.data.user;
       }
-      
+
       set({ user: null, accessToken: null, initialized: true });
       return null;
     } catch (error) {
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasPermission: (permissionCode) => {
     const user = get().user;
     if (!user) return false;
-    
+
     if (user.roleName === 'ADMIN') return true;
 
     const perms = ROLE_PERMISSIONS[user.roleName] || [];
