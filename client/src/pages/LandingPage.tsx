@@ -58,12 +58,8 @@ export default function LandingPage() {
           {/* Logo Branding: Crisp White Badge with Rathinam & RGU Accreditation Logos */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="bg-white rounded-xl px-3 py-1.5 shadow-lg border border-slate-200 flex items-center gap-3 group-hover:scale-[1.02] transition duration-200">
-              <img
-                src="/assets/rathinam_logo.png"
-                alt="Rathinam Logo"
-                className="h-8 sm:h-9 w-auto object-contain"
-              />
-              <div className="h-7 w-px bg-slate-300" />
+           
+              {/* <div className="h-7 w-px bg-slate-300" /> */}
               <img
                 src="/assets/rathinam_global_deemed_to_be_university.png"
                 alt="Rathinam Global Deemed to be University"
@@ -115,7 +111,7 @@ export default function LandingPage() {
           
           {/* Hero Tagline Badge with Crisp White Logo Container */}
           <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white border border-slate-200 shadow-2xl">
-            <Zap className="w-4.5 h-4.5 text-emerald-600 flex-shrink-0" />
+            {/* <Zap className="w-4.5 h-4.5 text-emerald-600 flex-shrink-0" /> */}
             <img
               src="/assets/rathinam_global_deemed_to_be_university.png"
               alt="Rathinam Global Deemed to be University"

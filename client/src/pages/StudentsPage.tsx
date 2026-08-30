@@ -430,14 +430,14 @@ export default function StudentsPage() {
             <tbody className="divide-y divide-border-primary text-sm text-text-secondary">
               {loading && students.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-text-muted font-medium">
+                  <td colSpan={10} className="text-center py-12 text-text-muted font-medium">
                     <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
                     <span>Loading student directory...</span>
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-text-muted font-medium">
+                  <td colSpan={10} className="text-center py-12 text-text-muted font-medium">
                     {activeTab === 'DELETED'
                       ? 'No deleted records found.'
                       : activeTab === 'TERMINATED'
@@ -452,17 +452,20 @@ export default function StudentsPage() {
                     className="hover:bg-surface-2/40 cursor-pointer transition duration-150"
                     onClick={() => activeTab !== 'DELETED' && navigate(`/students/${student.id}`)}
                   >
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-text-muted">
+                      {student.rollNumber || '—'}
+                    </td>
                     <td className="px-6 py-4 font-semibold text-text-primary">
                       <div className="flex items-center gap-3">
                         <StudentAvatar name={student.fullName} photoUrl={(student as any).studentPhotoUrl} size="sm" />
                         <span>{student.fullName}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department?.name}</td>
-                    <td className="px-6 py-4 text-xs font-medium">{student.gender}</td>
-                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage}%</td>
-                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.hscPercentage}%</td>
-                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage}%</td>
+                    <td className="px-6 py-4 text-xs font-medium text-text-muted">{student.department?.name || '—'}</td>
+                    <td className="px-6 py-4 text-xs font-medium">{student.gender || '—'}</td>
+                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.sslcPercentage ? `${student.academics.sslcPercentage}%` : '—'}</td>
+                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.hscPercentage ? `${student.academics.hscPercentage}%` : '—'}</td>
+                    <td className="px-6 py-4 text-center text-xs font-semibold">{student.academics?.ugPercentage ? `${student.academics.ugPercentage}%` : '—'}</td>
                     <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                       {(student as any).selfIntroVideoUrl ? (
                         <a

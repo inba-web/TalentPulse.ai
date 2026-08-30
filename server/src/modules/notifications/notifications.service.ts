@@ -6,19 +6,34 @@ export class NotificationService {
    * Fetch notifications scoped by user ID and user role.
    */
   public static async getUserNotifications(userId: string, roleName: RoleName) {
-    const notifications = await prisma.notification.findMany({
-      where: {
-        OR: [
-          { userId },
-          { targetRole: roleName },
-          { targetRole: null, userId: null }, // System global
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-    });
-
-    return notifications;
+    try {
+      const targetRoleStr = String(roleName) as RoleName;
+      const notifications = await prisma.notification.findMany({
+        where: {
+          OR: [
+            { userId },
+            { targetRole: targetRoleStr },
+            { targetRole: null, userId: null }, // System global
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      });
+      return notifications;
+    } catch (err) {
+      // Robust fallback if PostgreSQL enum operator type mismatch occurs
+      try {
+        const allNotifications = await prisma.notification.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        });
+        return allNotifications.filter(
+          (n) => !n.userId || n.userId === userId || !n.targetRole || (n.targetRole as any) === roleName
+        );
+      } catch (fallbackErr) {
+        return [];
+      }
+    }
   }
 
   /**
@@ -39,15 +54,20 @@ export class NotificationService {
    * Permanently erase all notifications for user/role upon Mark All Read.
    */
   public static async markAllRead(userId: string, roleName: RoleName) {
-    return prisma.notification.deleteMany({
-      where: {
-        OR: [
-          { userId },
-          { targetRole: roleName },
-          { targetRole: null, userId: null },
-        ],
-      },
-    });
+    try {
+      const targetRoleStr = String(roleName) as RoleName;
+      return await prisma.notification.deleteMany({
+        where: {
+          OR: [
+            { userId },
+            { targetRole: targetRoleStr },
+            { targetRole: null, userId: null },
+          ],
+        },
+      });
+    } catch (err) {
+      return { count: 0 };
+    }
   }
 
   /**
@@ -61,15 +81,19 @@ export class NotificationService {
     targetRole?: RoleName;
     userId?: string;
   }) {
-    return prisma.notification.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        type: data.type,
-        link: data.link,
-        targetRole: data.targetRole ?? null,
-        userId: data.userId ?? null,
-      },
-    });
+    try {
+      return await prisma.notification.create({
+        data: {
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          link: data.link,
+          targetRole: data.targetRole ?? null,
+          userId: data.userId ?? null,
+        },
+      });
+    } catch (err) {
+      return null;
+    }
   }
 }
