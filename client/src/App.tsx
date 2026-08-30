@@ -1,9 +1,8 @@
 import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
-import AppShell from './components/AppShell';
-
-// Lazy loaded Pages
+// Lazy loaded Pages & Layouts
+const AppShell = lazy(() => import('./components/AppShell'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -37,23 +36,22 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return user ? <AppShell>{children}</AppShell> : <Navigate to="/login" replace />;
+  return user ? (
+    <Suspense fallback={<PageFallback />}>
+      <AppShell>{children}</AppShell>
+    </Suspense>
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 function App() {
-  const { initialize, initialized } = useAuthStore();
+  const { initialize } = useAuthStore();
 
   useEffect(() => {
+    // Non-blocking background auth initialization for existing sessions
     initialize();
   }, []);
-
-  if (!initialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <BrowserRouter>

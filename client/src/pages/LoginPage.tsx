@@ -1,54 +1,10 @@
-import React, { useState, useRef, Suspense } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Points, PointMaterial } from '@react-three/drei';
-// Import random from maath/random/dist/maath-random.esm if needed, or implement a local float32 array generator which is extremely simple and self-contained!
-import * as THREE from 'three';
 
-// 3D Particles Constellation Component (self-contained, no external math dependencies)
-function ParticleBackground() {
-  const ref = useRef<THREE.Points>(null);
-
-  // Generate random coordinates inside a sphere
-  const [positions] = useState(() => {
-    const arr = new Float32Array(1500 * 3);
-    for (let i = 0; i < 1500; i++) {
-      const u = Math.random();
-      const v = Math.random();
-      const theta = u * 2.0 * Math.PI;
-      const phi = Math.acos(2.0 * v - 1.0);
-      const r = Math.cbrt(Math.random()) * 2.5; // Radius up to 2.5
-
-      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      arr[i * 3 + 2] = r * Math.cos(phi);
-    }
-    return arr;
-  });
-
-  useFrame((state, delta) => {
-    if (ref.current) {
-      ref.current.rotation.x -= delta / 12;
-      ref.current.rotation.y -= delta / 18;
-    }
-  });
-
-  return (
-    <group rotation={[0, 0, Math.PI / 4]}>
-      <Points ref={ref} positions={positions} stride={3} frustumCulled={false}>
-        <PointMaterial
-          transparent
-          color="#22C55E"
-          size={0.012}
-          sizeAttenuation={true}
-          depthWrite={false}
-        />
-      </Points>
-    </group>
-  );
-}
+// Dynamically lazy-load 3D WebGL background to keep initial Login bundle ultra lightweight
+const ParticleBackgroundCanvas = lazy(() => import('../components/ParticleBackgroundCanvas'));
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -90,14 +46,12 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen bg-background flex items-center justify-center overflow-hidden px-4">
 
-      {/* 3D WebGL Canvas Layer (Falls back to CSS animations if WebGL fails) */}
+      {/* 3D WebGL Canvas Layer (Falls back to CSS animations while loading) */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={
-          <div className="absolute inset-0 bg-gradient-to-tr from-background via-background-secondary to-background-tertiary opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-background via-background-secondary to-background-tertiary opacity-80 animate-pulse" />
         }>
-          <Canvas camera={{ position: [0, 0, 1.2] }}>
-            <ParticleBackground />
-          </Canvas>
+          <ParticleBackgroundCanvas />
         </Suspense>
       </div>
 

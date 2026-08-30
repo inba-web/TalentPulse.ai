@@ -108,8 +108,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refresh: async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     try {
-      const response = await fetch('/api/auth/refresh', { method: 'POST' });
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (result.success) {
@@ -124,6 +131,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, accessToken: null, initialized: true });
       return null;
     } catch (error) {
+      clearTimeout(timeoutId);
       set({ user: null, accessToken: null, initialized: true });
       return null;
     }

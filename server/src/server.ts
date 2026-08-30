@@ -603,12 +603,14 @@ async function runSchemaMigrations() {
   }
 }
 
-// Run migrations then start server
-(async () => {
-  await runSchemaMigrations();
-  const server = app.listen(PORT, () => {
-    logger.info(`TalentPulse.ai Server successfully running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+// Start server immediately so health checks & public routes respond without waiting for background DB tasks
+const server = app.listen(PORT, () => {
+  logger.info(`TalentPulse.ai Server successfully running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+  // Run schema migrations and auto-seeding asynchronously in the background
+  runSchemaMigrations().catch((err) => {
+    logger.warn({ err: err.message }, 'Background schema migration completed with non-fatal warning.');
   });
+});
 
   // Graceful shutdown controls
   const shutdown = async (signal: string) => {
@@ -630,7 +632,6 @@ async function runSchemaMigrations() {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-})();
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error({ promise, reason }, 'Unhandled Rejection at Promise');

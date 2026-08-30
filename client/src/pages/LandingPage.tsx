@@ -189,7 +189,7 @@ export default function LandingPage() {
               src="/assets/placement_highlights.png"
               alt="Rathinam Global Deemed to be University Placement Highlights — Student Record Offers"
               className="relative w-full h-auto rounded-2xl object-cover shadow-2xl transition-transform duration-500 group-hover:scale-[1.005]"
-              loading="eager"
+              loading="lazy"
             />
             <div className="relative mt-4 p-4 bg-black/90 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
               <div className="flex items-center gap-3">

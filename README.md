@@ -169,7 +169,3 @@ npm --prefix client run dev
 * 🛑 **Permission Guards**: Server-side permission middleware enforces authorization rules on every API endpoint.
 
 ---
-
-<p align="center">
-  Designed &amp; Developed for <b>Rathinam Educational Institutions</b> by <b>Antigravity AI</b> 🚀
-</p>
