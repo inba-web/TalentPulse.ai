@@ -10,6 +10,40 @@ interface JdPdfViewerModalProps {
   jdText?: string | null;
 }
 
+export function formatGoogleDrivePreviewUrl(url?: string | null): { embedUrl: string | null; downloadUrl: string | null; originalUrl: string | null } {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    return { embedUrl: null, downloadUrl: null, originalUrl: null };
+  }
+
+  // Pattern 1: https://drive.google.com/file/d/FILE_ID/view...
+  const fileDMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch) {
+    const fileId = fileDMatch[1];
+    return {
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      downloadUrl: `https://drive.google.com/uc?export=download&id=${fileId}`,
+      originalUrl: url,
+    };
+  }
+
+  // Pattern 2: https://drive.google.com/open?id=FILE_ID or uc?id=FILE_ID
+  const openIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (openIdMatch && url.includes('drive.google.com')) {
+    const fileId = openIdMatch[1];
+    return {
+      embedUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+      downloadUrl: `https://drive.google.com/uc?export=download&id=${fileId}`,
+      originalUrl: url,
+    };
+  }
+
+  return {
+    embedUrl: url,
+    downloadUrl: url,
+    originalUrl: url,
+  };
+}
+
 export default function JdPdfViewerModal({
   isOpen,
   onClose,
@@ -23,7 +57,8 @@ export default function JdPdfViewerModal({
 
   if (!isOpen) return null;
 
-  const hasValidUrl = pdfUrl && pdfUrl.startsWith('http') && !loadError;
+  const { embedUrl, downloadUrl, originalUrl } = formatGoogleDrivePreviewUrl(pdfUrl);
+  const hasValidUrl = !!embedUrl && !loadError;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-black/70 backdrop-blur-sm flex justify-center items-center">
@@ -37,7 +72,7 @@ export default function JdPdfViewerModal({
             </div>
             <div>
               <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider">
-                {title} — Job Description
+                {title} — Job Description PDF
               </h3>
               <p className="text-xs text-text-muted">{companyName}</p>
             </div>
@@ -64,24 +99,30 @@ export default function JdPdfViewerModal({
                   </button>
                 </div>
 
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-2 bg-surface-3 hover:bg-surface-elevated text-text-primary rounded border border-border-primary transition cursor-pointer"
-                  title="Open in new tab"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+                {originalUrl && (
+                  <a
+                    href={originalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 bg-surface-3 hover:bg-surface-elevated text-text-primary rounded border border-border-primary transition cursor-pointer"
+                    title="Open Google Drive Link in new tab"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
 
-                <a
-                  href={pdfUrl}
-                  download={`${companyName.replace(/\s+/g, '_')}_JD.pdf`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white text-xs font-bold rounded border-0 hover:brightness-110 transition cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download</span>
-                </a>
+                {downloadUrl && (
+                  <a
+                    href={downloadUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={`${companyName.replace(/\s+/g, '_')}_JD.pdf`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white text-xs font-bold rounded border-0 hover:brightness-110 transition cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download</span>
+                  </a>
+                )}
               </>
             )}
 
@@ -95,16 +136,17 @@ export default function JdPdfViewerModal({
         </div>
 
         {/* Viewer Content Area */}
-        <div className="flex-1 bg-background-secondary p-6 overflow-y-auto flex flex-col items-center justify-center">
+        <div className="flex-1 bg-background-secondary p-4 sm:p-6 overflow-y-auto flex flex-col items-center justify-center">
           {hasValidUrl ? (
             <div
               className="w-full h-full bg-white rounded shadow-lg overflow-hidden border border-border-primary transition-all duration-150"
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
             >
               <iframe
-                src={pdfUrl}
+                src={embedUrl!}
                 className="w-full h-full border-0"
                 title={`${companyName} JD PDF`}
+                allow="autoplay"
                 onError={() => setLoadError(true)}
               />
             </div>
@@ -114,7 +156,7 @@ export default function JdPdfViewerModal({
               <div className="flex items-center gap-3 p-4 bg-warning/10 border border-warning/20 rounded">
                 <AlertCircle className="w-5 h-5 text-warning flex-shrink-0" />
                 <div className="text-xs text-text-primary">
-                  <span className="font-bold">Original PDF document not attached:</span> Displaying verified Job Description text specification for {companyName}.
+                  <span className="font-bold">Original PDF document preview:</span> Displaying verified Job Description specification for {companyName}.
                 </div>
               </div>
 
@@ -142,3 +184,4 @@ export default function JdPdfViewerModal({
     </div>
   );
 }
+

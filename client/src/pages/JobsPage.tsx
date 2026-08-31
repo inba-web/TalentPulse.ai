@@ -6,6 +6,7 @@ import StatusBadge from '../components/StatusBadge';
 import { useAuthStore } from '../store/authStore';
 import { Plus, Search, FileText, ArrowRight, Check, X, Loader2, Upload, HelpCircle, Edit, RefreshCw, Users } from 'lucide-react';
 import DriveManagementModal from '../components/DriveManagementModal';
+import JdPdfViewerModal from '../components/JdPdfViewerModal';
 
 export default function JobsPage() {
   const { jobs, fetchJobs, createJob, forwardJob, reviewJob, extractJd } = useJobStore();
@@ -16,6 +17,13 @@ export default function JobsPage() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
+
+  // JD PDF View Modal state
+  const [jdPdfModalOpen, setJdPdfModalOpen] = useState(false);
+  const [activeJdPdfUrl, setActiveJdPdfUrl] = useState<string | null>(null);
+  const [activeJdTitle, setActiveJdTitle] = useState('');
+  const [activeJdCompanyName, setActiveJdCompanyName] = useState('');
+  const [activeJdText, setActiveJdText] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -243,6 +251,22 @@ export default function JobsPage() {
                       <StatusBadge status={job.status} />
                     </td>
                     <td className="px-6 py-4 text-right space-x-2 flex items-center justify-end gap-2">
+                      {/* Render JD PDF Button */}
+                      <button
+                        onClick={() => {
+                          setActiveJdTitle(job.jobTitle);
+                          setActiveJdCompanyName(job.company.name);
+                          setActiveJdPdfUrl(job.jdPdfUrl || job.jdLink || null);
+                          setActiveJdText(job.jdText || null);
+                          setJdPdfModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-primary text-white text-xs font-bold rounded transition cursor-pointer border-0 shadow-sm hover:brightness-110"
+                        title="Render Attached JD PDF (Google Drive Link)"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>JD PDF</span>
+                      </button>
+
                       {/* Drive Candidates Management Button */}
                       <button
                         onClick={() => {
@@ -492,6 +516,16 @@ export default function JobsPage() {
           setDriveModalOpen(false);
           fetchJobs({ page });
         }}
+      />
+
+      {/* JD PDF Viewer Modal */}
+      <JdPdfViewerModal
+        isOpen={jdPdfModalOpen}
+        onClose={() => setJdPdfModalOpen(false)}
+        title={activeJdTitle}
+        companyName={activeJdCompanyName}
+        pdfUrl={activeJdPdfUrl}
+        jdText={activeJdText}
       />
     </div>
   );

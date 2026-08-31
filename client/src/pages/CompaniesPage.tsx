@@ -153,6 +153,13 @@ export default function CompaniesPage() {
   const [editJdText, setEditJdText] = useState('');
   const [editJdSaving, setEditJdSaving] = useState(false);
 
+  // JD PDF View Modal state
+  const [jdPdfModalOpen, setJdPdfModalOpen] = useState(false);
+  const [activeJdPdfUrl, setActiveJdPdfUrl] = useState<string | null>(null);
+  const [activeJdTitle, setActiveJdTitle] = useState('');
+  const [activeJdCompanyName, setActiveJdCompanyName] = useState('');
+  const [activeJdText, setActiveJdText] = useState<string | null>(null);
+
   const handleEvaluateJd = async () => {
     setJdEvaluating(true);
     setJdError('');
@@ -792,7 +799,7 @@ export default function CompaniesPage() {
                 {(() => {
                   const VERIFIED_COMPANY_LOCATIONS: Record<string, { address: string; mapsUrl: string }> = {
                     'zoho': {
-                      address: 'Estancia IT Park, Plot No. 140 & 151, GST Road, Vallanchery, Guduvancheri, Tamil Nadu 603202, India',
+                      address: 'Estancia IT Park, Plot No. 140 & 151, GST Road, Vallanchery, Guduvancheri, Chennai, Tamil Nadu 603202, India',
                       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Zoho+Corporation+Estancia+IT+Park+GST+Road+Guduvancheri',
                     },
                     'google': {
@@ -802,6 +809,38 @@ export default function CompaniesPage() {
                     'amazon': {
                       address: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
                       mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Development+Centre+Nanakramguda+Hyderabad',
+                    },
+                    'aws': {
+                      address: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Web+Services+Nanakramguda+Hyderabad',
+                    },
+                    'cisco': {
+                      address: 'SEZ Unit, Cessna Business Park, Kadubeesanahalli, Varthur Hobli, Outer Ring Road, Bengaluru, Karnataka 560103, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Cisco+Systems+Cessna+Business+Park+Bengaluru',
+                    },
+                    'microsoft': {
+                      address: 'Building 3, Microsoft Campus, Gachibowli, Hyderabad, Telangana 500032, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Microsoft+India+Campus+Gachibowli+Hyderabad',
+                    },
+                    'tata': {
+                      address: 'TCS House, Raveline Street, Fort, Mumbai, Maharashtra 400001, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Tata+Consultancy+Services+TCS+House+Fort+Mumbai',
+                    },
+                    'tcs': {
+                      address: 'TCS House, Raveline Street, Fort, Mumbai, Maharashtra 400001, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Tata+Consultancy+Services+TCS+House+Fort+Mumbai',
+                    },
+                    'deloitte': {
+                      address: 'Building 3, Deloitte Drive, Hitec City, Madhapur, Hyderabad, Telangana 500081, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Deloitte+USI+Hitec+City+Hyderabad',
+                    },
+                    'hdfc': {
+                      address: 'HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai, Maharashtra 400013, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=HDFC+Bank+House+Lower+Parel+Mumbai',
+                    },
+                    'wipro': {
+                      address: 'Doddakannelli, Sarjapur Road, Bengaluru, Karnataka 560035, India',
+                      mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Wipro+Corporate+Office+Sarjapur+Road+Bengaluru',
                     },
                     'palo alto': {
                       address: 'Prestige Trade Tower, Palace Road, High Grounds, Sampangi Rama Nagar, Bengaluru, Karnataka 560001, India',
@@ -993,6 +1032,21 @@ export default function CompaniesPage() {
                               >
                                 <Users className="w-3.5 h-3.5" />
                                 <span>Manage Drive</span>
+                              </button>
+                              {/* Render JD PDF button */}
+                              <button
+                                onClick={() => {
+                                  setActiveJdTitle(job.jobTitle);
+                                  setActiveJdCompanyName(detailedCompany.name);
+                                  setActiveJdPdfUrl(job.jdPdfUrl || job.jdLink || null);
+                                  setActiveJdText(job.jdText || null);
+                                  setJdPdfModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-gradient-primary text-white text-xs font-bold rounded flex items-center gap-1.5 hover:brightness-110 transition cursor-pointer border-0 shadow-sm"
+                                title="Fetch and Render Attached JD PDF (Google Drive Link)"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Render JD PDF</span>
                               </button>
                               {/* JD Edit button */}
                               {hasPermission('JOB_UPDATE') && (
@@ -1585,6 +1639,16 @@ export default function CompaniesPage() {
         isOpen={excelImportOpen}
         onClose={() => setExcelImportOpen(false)}
         onSuccess={() => fetchCompanies({ page: 1 })}
+      />
+
+      {/* JD PDF Viewer Modal */}
+      <JdPdfViewerModal
+        isOpen={jdPdfModalOpen}
+        onClose={() => setJdPdfModalOpen(false)}
+        title={activeJdTitle}
+        companyName={activeJdCompanyName}
+        pdfUrl={activeJdPdfUrl}
+        jdText={activeJdText}
       />
     </div>
   );

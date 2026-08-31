@@ -561,11 +561,11 @@ export class StudentService {
           hscPercentage: hsc,
           ugPercentage: ug,
           pgPercentage: pg,
-          githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url', 'github id', 'github_id']) || null,
-          linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url', 'linkedin id', 'linkedin_id']) || null,
-          portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website']) || null,
-          studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image', 'student photo', 'student_photo']) || null,
-          selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video']) || null,
+          githubUrl: getValue(row, ['githubUrl', 'github Url', 'github', 'github_url', 'github id', 'github_id', 'GitHub ID']) || null,
+          linkedinUrl: getValue(row, ['linkedinUrl', 'linkedin Url', 'linkedin', 'linkedin_url', 'linkedin id', 'linkedin_id', 'LinkedIn ID']) || null,
+          portfolioUrl: getValue(row, ['portfolioUrl', 'portfolio Url', 'portfolio', 'portfolio_url', 'website', 'Portfolio']) || null,
+          studentPhotoUrl: getValue(row, ['studentPhotoUrl', 'photo', 'photo_url', 'photo url', 'image', 'student photo', 'student_photo', 'Student Photo']) || null,
+          selfIntroVideoUrl: getValue(row, ['selfIntroVideoUrl', 'video', 'video_url', 'video url', 'intro video', 'Self Intro Video Link', 'self intro video link']) || null,
         });
 
         // Find existing student by roll number, email, or mobile for Upsert
@@ -645,68 +645,199 @@ export class StudentService {
           successCount++;
         }
 
-        // Process placement details if company / job info is in the row
-        const companyName = getValue(row, ['companyName', 'company Name', 'company_name', 'company', 'employer']);
-        const jobTitle = getValue(row, ['jobTitle', 'job Title', 'job_title', 'designation', 'role', 'title']);
-        const ctcVal = parseNumeric(getValue(row, ['ctc', 'ctc (lpa)', 'ctc_lpa', 'ctc (in lpa)', 'package', 'salary']));
-        const offerStatus = getValue(row, ['offerStatus', 'offer Status', 'offer_status', 'offer status']).toUpperCase() || 'OFFERED';
-        const jobLocation = getValue(row, ['jobLocation', 'job Location', 'location']) || 'India';
+        // Process placement and drive details for attended / placed companies
+        const attendedCompaniesRaw = getValue(row, [
+          'attendedCompanies', 'Attended Companies (From 20 Companies)', 'Attended Companies',
+          'Attended Drives', 'Placed Companies', 'companyName', 'company Name', 'company_name',
+          'company', 'employer'
+        ]);
+        const jobTitleInput = getValue(row, ['jobTitle', 'job Title', 'job_title', 'designation', 'role', 'title']) || 'Software Engineering Associate';
+        const rawCtc = parseNumeric(getValue(row, ['ctc', 'ctc (lpa)', 'ctc_lpa', 'ctc (in lpa)', 'package', 'salary']));
 
-        if (companyName && jobTitle && studentRecord) {
-          // Resolve or create company
-          let company = await prisma.company.findFirst({
-            where: { name: { equals: companyName, mode: 'insensitive' } },
-          });
-          if (!company) {
-            company = await prisma.company.create({
-              data: {
-                name: companyName,
-                contactPerson: 'HR Team',
-                designation: 'Campus Recruiter',
-                contactEmail: `hr@${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
-                contactMobile: '9876543210',
-                status: 'HOT',
+        const DEFAULT_COMPANY_META: Record<string, { ctc: number; hqAddress: string; mapsUrl: string; jdDriveUrl: string }> = {
+          'google': {
+            ctc: 24.0,
+            hqAddress: 'Block 1, Divyasree Omega, Survey No 13, Kothaguda, Hitec City, Kondapur, Hyderabad, Telangana 500084, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Google+India+Kothaguda+Hitec+City+Hyderabad',
+            jdDriveUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+          },
+          'zoho': {
+            ctc: 12.0,
+            hqAddress: 'Estancia IT Park, Plot No. 140 & 151, GST Road, Vallanchery, Guduvancheri, Chennai, Tamil Nadu 603202, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Zoho+Corporation+Estancia+IT+Park+GST+Road+Guduvancheri',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BCY002_Doc/view?usp=drive_link',
+          },
+          'amazon': {
+            ctc: 18.0,
+            hqAddress: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Development+Centre+Nanakramguda+Hyderabad',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BBA003_Doc/view?usp=drive_link',
+          },
+          'aws': {
+            ctc: 20.0,
+            hqAddress: 'Amazon Towers, Financial District, Nanakramguda, Gachibowli, Hyderabad, Telangana 500032, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Amazon+Web+Services+Nanakramguda+Hyderabad',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RTC2024BCY004_Doc/view?usp=drive_link',
+          },
+          'cisco': {
+            ctc: 16.5,
+            hqAddress: 'SEZ Unit, Cessna Business Park, Kadubeesanahalli, Varthur Hobli, Outer Ring Road, Bengaluru, Karnataka 560103, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Cisco+Systems+Cessna+Business+Park+Bengaluru',
+            jdDriveUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+          },
+          'microsoft': {
+            ctc: 22.0,
+            hqAddress: 'Building 3, Microsoft Campus, Gachibowli, Hyderabad, Telangana 500032, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Microsoft+India+Campus+Gachibowli+Hyderabad',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BCY002_Doc/view?usp=drive_link',
+          },
+          'tata': {
+            ctc: 8.5,
+            hqAddress: 'TCS House, Raveline Street, Fort, Mumbai, Maharashtra 400001, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Tata+Consultancy+Services+TCS+House+Fort+Mumbai',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BBA003_Doc/view?usp=drive_link',
+          },
+          'tcs': {
+            ctc: 8.5,
+            hqAddress: 'TCS House, Raveline Street, Fort, Mumbai, Maharashtra 400001, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Tata+Consultancy+Services+TCS+House+Fort+Mumbai',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BBA003_Doc/view?usp=drive_link',
+          },
+          'deloitte': {
+            ctc: 11.0,
+            hqAddress: 'Building 3, Deloitte Drive, Hitec City, Madhapur, Hyderabad, Telangana 500081, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Deloitte+USI+Hitec+City+Hyderabad',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RTC2024BCY004_Doc/view?usp=drive_link',
+          },
+          'hdfc': {
+            ctc: 9.5,
+            hqAddress: 'HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai, Maharashtra 400013, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=HDFC+Bank+House+Lower+Parel+Mumbai',
+            jdDriveUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+          },
+          'wipro': {
+            ctc: 7.5,
+            hqAddress: 'Doddakannelli, Sarjapur Road, Bengaluru, Karnataka 560035, India',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Wipro+Corporate+Office+Sarjapur+Road+Bengaluru',
+            jdDriveUrl: 'https://drive.google.com/file/d/1Resume_RCAS2024BCY002_Doc/view?usp=drive_link',
+          },
+        };
+
+        if (attendedCompaniesRaw && studentRecord) {
+          const companyList = attendedCompaniesRaw.split(/[,;&]/).map(s => s.trim()).filter(Boolean);
+          for (let cIdx = 0; cIdx < companyList.length; cIdx++) {
+            const compName = companyList[cIdx];
+            const compKey = compName.toLowerCase();
+
+            let matchedMeta = {
+              ctc: 10.0,
+              hqAddress: `${compName} Headquarters, India`,
+              mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(compName + ' Corporate Office India')}`,
+              jdDriveUrl: 'https://drive.google.com/file/d/1CvljA9jVEZBUpF7dC4IQX-I6rn3CjM2m/view?usp=drive_link',
+            };
+
+            for (const [k, v] of Object.entries(DEFAULT_COMPANY_META)) {
+              if (compKey.includes(k)) {
+                matchedMeta = v;
+                break;
+              }
+            }
+
+            const assignedCtc = rawCtc > 0 ? rawCtc : matchedMeta.ctc;
+
+            // Resolve or create company
+            let company = await prisma.company.findFirst({
+              where: { name: { equals: compName, mode: 'insensitive' } },
+            });
+            if (!company) {
+              company = await prisma.company.create({
+                data: {
+                  name: compName,
+                  exactAddress: matchedMeta.hqAddress,
+                  mapsUrl: matchedMeta.mapsUrl,
+                  contactPerson: 'HR Team',
+                  designation: 'Campus Recruiter',
+                  contactEmail: `hr@${compName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+                  contactMobile: '9876543210',
+                  status: 'HOT',
+                },
+              });
+            } else if (!company.exactAddress) {
+              await prisma.company.update({
+                where: { id: company.id },
+                data: {
+                  exactAddress: matchedMeta.hqAddress,
+                  mapsUrl: matchedMeta.mapsUrl,
+                },
+              });
+            }
+
+            // Resolve or create job
+            let job = await prisma.job.findFirst({
+              where: {
+                companyId: company.id,
+                jobTitle: { equals: jobTitleInput, mode: 'insensitive' },
               },
             });
-          }
 
-          // Resolve or create job
-          let job = await prisma.job.findFirst({
-            where: {
-              companyId: company.id,
-              jobTitle: { equals: jobTitle, mode: 'insensitive' },
-            },
-          });
-          if (!job) {
-            const adminUser = await prisma.user.findFirst({ where: { roleName: 'ADMIN' } });
-            job = await prisma.job.create({
-              data: {
-                companyId: company.id,
-                jobTitle,
-                jdText: `${jobTitle} opportunity at ${companyName}.`,
-                ctc: ctcVal || 6.0,
-                location: jobLocation,
-                status: 'APPROVED',
-                createdById: adminUser?.id || '',
-              },
-            });
-          }
+            if (!job) {
+              let adminUser = await prisma.user.findFirst({ where: { roleName: 'ADMIN' } });
+              if (!adminUser) adminUser = await prisma.user.findFirst();
 
-          // Record placement history entry if not already present
-          const existingPlacement = await prisma.studentPlacementHistory.findFirst({
-            where: { studentId: studentRecord.id, jobId: job.id },
-          });
-          if (!existingPlacement) {
-            await prisma.studentPlacementHistory.create({
-              data: {
-                studentId: studentRecord.id,
-                companyId: company.id,
+              job = await prisma.job.create({
+                data: {
+                  companyId: company.id,
+                  jobTitle: jobTitleInput,
+                  jdText: `Job Description specification for ${jobTitleInput} opening at ${compName}. Minimum percentage criteria 60% with strong analytical and communication skills.`,
+                  jdPdfUrl: matchedMeta.jdDriveUrl,
+                  ctc: assignedCtc,
+                  location: matchedMeta.hqAddress.split(',')[1]?.trim() || 'India',
+                  status: 'APPROVED',
+                  createdById: adminUser?.id || '',
+                },
+              });
+            } else if (!job.jdPdfUrl) {
+              await prisma.job.update({
+                where: { id: job.id },
+                data: { jdPdfUrl: matchedMeta.jdDriveUrl },
+              });
+            }
+
+            // Register Drive participation
+            await prisma.driveStudent.upsert({
+              where: { jobId_studentId: { jobId: job.id, studentId: studentRecord.id } },
+              create: {
                 jobId: job.id,
-                ctc: ctcVal || job.ctc,
-                status: offerStatus,
+                studentId: studentRecord.id,
+                status: finalPlacementStatus === PlacementStatus.PLACED ? 'SELECTED' : 'ATTENDED',
+                attendedAt: new Date(),
+                selectedAt: finalPlacementStatus === PlacementStatus.PLACED ? new Date() : null,
+              },
+              update: {
+                status: finalPlacementStatus === PlacementStatus.PLACED ? 'SELECTED' : 'ATTENDED',
               },
             });
-            // Ensure student status is set to PLACED
+
+            // Create Placement History entry if PLACED or offered
+            if (finalPlacementStatus === PlacementStatus.PLACED || cIdx === 0) {
+              const existingPlacement = await prisma.studentPlacementHistory.findFirst({
+                where: { studentId: studentRecord.id, jobId: job.id },
+              });
+              if (!existingPlacement) {
+                await prisma.studentPlacementHistory.create({
+                  data: {
+                    studentId: studentRecord.id,
+                    companyId: company.id,
+                    jobId: job.id,
+                    ctc: assignedCtc,
+                    status: 'JOINED',
+                  },
+                });
+              }
+            }
+          }
+
+          if (finalPlacementStatus === PlacementStatus.PLACED) {
             await prisma.student.update({
               where: { id: studentRecord.id },
               data: { placementStatus: PlacementStatus.PLACED },
