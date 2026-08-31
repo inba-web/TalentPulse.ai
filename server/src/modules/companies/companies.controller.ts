@@ -5,7 +5,7 @@ import { catchAsync, AppError } from '../../utils/errors';
 import { prisma } from '../../config/db';
 import { createCompanySchema, updateCompanySchema } from './companies.validator';
 import { AuthenticatedRequest } from '../../middleware/auth';
-import { OpportunityStatus } from '@prisma/client';
+import { OpportunityStatus, JobStatus } from '@prisma/client';
 
 export class CompanyController {
   public static getCompanies = catchAsync(async (req: Request, res: Response) => {
@@ -169,7 +169,25 @@ export class CompanyController {
     }
 
     const worksheet = workbook.Sheets[sheetName];
-    const rows: any[] = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+
+    // Read raw rows to auto-detect header row index
+    const rawRows: any[] = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+    let headerRowIndex = 0;
+
+    for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+      const row = rawRows[i];
+      if (Array.isArray(row)) {
+        const rowStr = row.map((c) => String(c || '').toLowerCase()).join(' ');
+        const hasCompany = rowStr.includes('company name') || rowStr.includes('company') || rowStr.includes('organization') || rowStr.includes('corporate');
+        const hasRoleOrStatus = rowStr.includes('role') || rowStr.includes('title') || rowStr.includes('status') || rowStr.includes('ctc') || rowStr.includes('s.no') || rowStr.includes('sno') || rowStr.includes('placed');
+        if (hasCompany && hasRoleOrStatus) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    }
+
+    const rows: any[] = xlsx.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: '' });
 
     if (!rows || rows.length === 0) {
       throw new AppError('The Excel worksheet is empty.', 400, 'EMPTY_FILE');
@@ -178,17 +196,37 @@ export class CompanyController {
     let createdCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
+    let processedRowsCount = 0;
     const errorDetails: { row: number; companyName: string; reason: string }[] = [];
 
     for (let idx = 0; idx < rows.length; idx++) {
       const row = rows[idx];
-      const rowNumber = idx + 2; // 1-indexed header offset
+      const rowNumber = headerRowIndex + 2 + idx; // 1-indexed row number in Excel
+
+      // 1. Skip completely empty rows
+      const hasAnyData = Object.values(row).some((val) => val !== undefined && val !== null && String(val).trim() !== '');
+      if (!hasAnyData) {
+        continue;
+      }
+
+      // 2. Skip metadata / header / summary footer rows
+      const combinedRowText = Object.values(row).map((v) => String(v)).join(' ').toLowerCase();
+      if (
+        combinedRowText.includes('prisma schema entities:') ||
+        combinedRowText.includes('corporate placement directory') ||
+        combinedRowText.includes('overall average') ||
+        combinedRowText.includes('summary statistics') ||
+        combinedRowText.includes('grand total')
+      ) {
+        continue;
+      }
 
       // Flexible column key resolution
       const getVal = (keys: string[]) => {
         for (const k of keys) {
+          const targetNorm = k.toLowerCase().replace(/[^a-z0-9]/g, '');
           const match = Object.keys(row).find(
-            (rk) => rk.toLowerCase().trim().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, '')
+            (rk) => rk.toLowerCase().trim().replace(/[^a-z0-9]/g, '') === targetNorm
           );
           if (match && row[match] !== undefined && row[match] !== null && String(row[match]).trim() !== '') {
             return String(row[match]).trim();
@@ -197,33 +235,38 @@ export class CompanyController {
         return '';
       };
 
-      const name = getVal(['Company Name', 'CompanyName', 'Company', 'Name', 'Organization']);
+      const name = getVal(['Company Name', 'CompanyName', 'Company', 'Name', 'Organization', 'Corporate Partner']);
       if (!name) {
+        if (combinedRowText.includes('average') || combinedRowText.includes('total') || combinedRowText.includes('overall')) {
+          continue;
+        }
         skippedCount++;
         errorDetails.push({ row: rowNumber, companyName: 'Unknown', reason: 'Missing mandatory Company Name' });
         continue;
       }
 
-      const website = getVal(['Website', 'URL', 'Web', 'Company Website']) || null;
+      processedRowsCount++;
+
+      const website = getVal(['Official Careers Link', 'Careers Link', 'Careers', 'Website', 'URL', 'Web', 'Company Website']) || null;
       const industry = getVal(['Industry', 'Sector', 'Domain']) || 'Corporate Partner';
       const contactPerson = getVal(['Contact Person', 'Recruiter Name', 'HR Name', 'Contact', 'Person']) || 'HR Manager';
       const designation = getVal(['Designation', 'Title', 'Role', 'Contact Designation']) || 'Talent Acquisition Lead';
       const contactEmail = getVal(['Contact Email', 'Email', 'HR Email', 'Email Address']) || `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@talentpulse.ai`;
       const contactMobile = getVal(['Contact Mobile', 'Mobile', 'Phone', 'Contact Number']) || '9876543210';
-      const exactAddress = getVal(['Address', 'Location', 'Headquarters', 'HQ', 'City', 'Place']) || null;
+      const exactAddress = getVal(['Location', 'Address', 'Headquarters', 'HQ', 'City', 'Place']) || null;
       
-      const rawStatus = getVal(['Status', 'Pipeline', 'Company Status']).toUpperCase();
+      const rawStatus = getVal(['Opportunity Status', 'Status', 'Pipeline', 'Company Status']).toUpperCase();
       let status: OpportunityStatus = OpportunityStatus.COLD;
-      if (rawStatus.includes('HOT')) status = OpportunityStatus.HOT;
+      if (rawStatus.includes('DRIVE') || rawStatus.includes('COMPLETED')) status = OpportunityStatus.DRIVE_COMPLETED;
+      else if (rawStatus.includes('HOT')) status = OpportunityStatus.HOT;
       else if (rawStatus.includes('WARM')) status = OpportunityStatus.WARM;
-      else if (rawStatus.includes('DRIVE') || rawStatus.includes('COMPLETED')) status = OpportunityStatus.DRIVE_COMPLETED;
       else if (rawStatus.includes('COLD')) status = OpportunityStatus.COLD;
 
       const empSizeVal = parseInt(getVal(['Employee Size', 'Size', 'Employees', 'Company Size']));
       const employeeSize = !isNaN(empSizeVal) && empSizeVal > 0 ? empSizeVal : 250;
 
       try {
-        const existing = await prisma.company.findFirst({
+        let company = await prisma.company.findFirst({
           where: {
             OR: [
               { name: { equals: name, mode: 'insensitive' } },
@@ -232,24 +275,24 @@ export class CompanyController {
           },
         });
 
-        if (existing) {
-          await prisma.company.update({
-            where: { id: existing.id },
+        if (company) {
+          company = await prisma.company.update({
+            where: { id: company.id },
             data: {
-              website: website || existing.website,
-              industry: industry || existing.industry,
-              contactPerson: contactPerson || existing.contactPerson,
-              designation: designation || existing.designation,
-              contactEmail: contactEmail || existing.contactEmail,
-              contactMobile: contactMobile || existing.contactMobile,
-              exactAddress: exactAddress || existing.exactAddress,
+              website: website || company.website,
+              industry: industry || company.industry,
+              contactPerson: contactPerson || company.contactPerson,
+              designation: designation || company.designation,
+              contactEmail: contactEmail || company.contactEmail,
+              contactMobile: contactMobile || company.contactMobile,
+              exactAddress: exactAddress || company.exactAddress,
               status,
               employeeSize,
             },
           });
           updatedCount++;
         } else {
-          await prisma.company.create({
+          company = await prisma.company.create({
             data: {
               name,
               website,
@@ -265,6 +308,119 @@ export class CompanyController {
           });
           createdCount++;
         }
+
+        // Process Job entity if Job details are present in the row
+        const jobTitle = getVal(['Job Title / Role', 'Job Title', 'Role', 'Position', 'Job']);
+        const rawCtc = getVal(['CTC (LPA)', 'CTC', 'Package', 'Salary']);
+        let ctcVal = 6.0;
+        if (rawCtc) {
+          const match = rawCtc.match(/[\d.]+/);
+          if (match) {
+            ctcVal = parseFloat(match[0]);
+          }
+        }
+
+        const rawJobStatus = getVal(['Job Status', 'Job Approval Status']).toUpperCase();
+        let jobStatus: JobStatus = JobStatus.APPROVED;
+        if (rawJobStatus.includes('PENDING')) jobStatus = JobStatus.PENDING_APPROVAL;
+        else if (rawJobStatus.includes('REJECT')) jobStatus = JobStatus.REJECTED;
+        else if (rawJobStatus.includes('DRAFT')) jobStatus = JobStatus.DRAFT;
+        else if (rawJobStatus.includes('APPROV')) jobStatus = JobStatus.APPROVED;
+
+        const jdText = getVal(['Job Description Summary', 'Job Description', 'JD Summary', 'JD']) || `${jobTitle || name} placement opportunity.`;
+        const jdPdfUrl = getVal(['JD PDF Link (Rendering)', 'JD PDF Link', 'PDF Link', 'JD Link', 'Drive Link']) || null;
+        const jobLocation = exactAddress || 'India';
+
+        if (jobTitle && company) {
+          let adminUser = await prisma.user.findFirst({ where: { roleName: 'ADMIN' } });
+          if (!adminUser) {
+            adminUser = await prisma.user.findFirst();
+          }
+          const createdById = req.user?.id || adminUser?.id;
+
+          if (createdById) {
+            let job = await prisma.job.findFirst({
+              where: {
+                companyId: company.id,
+                jobTitle: { equals: jobTitle, mode: 'insensitive' },
+              },
+            });
+
+            if (job) {
+              job = await prisma.job.update({
+                where: { id: job.id },
+                data: {
+                  jdText: jdText || job.jdText,
+                  jdPdfUrl: jdPdfUrl || job.jdPdfUrl,
+                  ctc: ctcVal || job.ctc,
+                  location: jobLocation || job.location,
+                  status: jobStatus,
+                },
+              });
+            } else {
+              job = await prisma.job.create({
+                data: {
+                  companyId: company.id,
+                  jobTitle,
+                  jdText,
+                  jdPdfUrl,
+                  ctc: ctcVal,
+                  location: jobLocation,
+                  status: jobStatus,
+                  createdById,
+                },
+              });
+            }
+
+            if (job.status === JobStatus.APPROVED) {
+              await prisma.jobApproval.upsert({
+                where: { jobId: job.id },
+                create: {
+                  jobId: job.id,
+                  reviewedById: createdById,
+                  reviewedAt: new Date(),
+                  comment: 'Auto-approved via Excel Bulk Import',
+                },
+                update: {
+                  reviewedAt: new Date(),
+                },
+              });
+            }
+
+            // Process Placed Students if details are provided in the row
+            const placedDetails = getVal(['Placed Students Details', 'Placed Students', 'Student Details']);
+            if (placedDetails && placedDetails.trim() !== '') {
+              const rollMatches = placedDetails.match(/([A-Z0-9]{8,15})/gi);
+              if (rollMatches && rollMatches.length > 0) {
+                for (const rollNum of rollMatches) {
+                  const student = await prisma.student.findFirst({
+                    where: { rollNumber: { equals: rollNum, mode: 'insensitive' } },
+                  });
+                  if (student) {
+                    const existingPlacement = await prisma.studentPlacementHistory.findFirst({
+                      where: { studentId: student.id, jobId: job.id },
+                    });
+                    if (!existingPlacement) {
+                      await prisma.studentPlacementHistory.create({
+                        data: {
+                          studentId: student.id,
+                          companyId: company.id,
+                          jobId: job.id,
+                          ctc: ctcVal,
+                          status: 'OFFERED',
+                        },
+                      });
+                      await prisma.student.update({
+                        where: { id: student.id },
+                        data: { placementStatus: 'PLACED' },
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       } catch (err: any) {
         skippedCount++;
         errorDetails.push({ row: rowNumber, companyName: name, reason: err.message || 'Database write error' });
@@ -274,7 +430,7 @@ export class CompanyController {
     res.status(200).json({
       success: true,
       data: {
-        totalRows: rows.length,
+        totalRows: processedRowsCount,
         validRows: createdCount + updatedCount,
         invalidRows: skippedCount,
         createdCount,
@@ -285,4 +441,5 @@ export class CompanyController {
     });
   });
 }
+
 
