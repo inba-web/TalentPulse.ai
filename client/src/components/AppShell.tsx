@@ -37,60 +37,39 @@ interface NotificationItem {
   link: string;
 }
 
+function formatTimeAgo(dateStr?: string) {
+  if (!dateStr) return 'Just now';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+}
+
 function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: '1',
-      title: 'New Student Profile Upload',
-      description: 'INBAVARUNAN S (RCAS2024BCY046) uploaded resume in Cyber Security.',
-      time: '2 mins ago',
-      type: 'STUDENT',
-      read: false,
-      link: '/students',
-    },
-    {
-      id: '2',
-      title: 'Placement Drive Approved',
-      description: 'Google India (Software Engineer - 20.0 LPA) drive approved by Admin.',
-      time: '15 mins ago',
-      type: 'JOB',
-      read: false,
-      link: '/jobs',
-    },
-    {
-      id: '3',
-      title: 'High ATS Match Found',
-      description: '3 students achieved > 85% ATS score match for Zoho Corporation.',
-      time: '1 hour ago',
-      type: 'ATS',
-      read: false,
-      link: '/jd-matcher',
-    },
-    {
-      id: '4',
-      title: 'New Corporate Partner',
-      description: 'Palo Alto Networks registered placement drive opportunity.',
-      time: '3 hours ago',
-      type: 'COMPANY',
-      read: true,
-      link: '/companies',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+
+  const fetchLiveNotifications = async () => {
+    try {
+      const res = await apiFetch('/api/notifications');
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data?.notifications)) {
+        setNotifications(result.data.notifications);
+      }
+    } catch (err) {
+      console.error('Failed to fetch live notifications:', err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLiveNotifications = async () => {
-      try {
-        const res = await apiFetch('/api/notifications');
-        const result = await res.json();
-        if (result.success && result.data?.notifications?.length > 0) {
-          setNotifications(result.data.notifications);
-        }
-      } catch (err) {
-        // Fallback to initial notifications
-      }
-    };
     fetchLiveNotifications();
   }, []);
 
@@ -100,7 +79,9 @@ function NotificationDropdown() {
     setNotifications([]);
     try {
       await apiFetch('/api/notifications/read-all', { method: 'PATCH' });
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
   };
 
   const markItemRead = async (id: string, link: string) => {
@@ -108,8 +89,12 @@ function NotificationDropdown() {
     setOpen(false);
     try {
       await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
-    } catch (err) {}
-    navigate(link);
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+    if (link) {
+      navigate(link);
+    }
   };
 
   const getIcon = (type: NotificationItem['type']) => {
@@ -185,7 +170,7 @@ function NotificationDropdown() {
                         <span className={`text-xs font-bold truncate ${n.read ? 'text-text-primary' : 'text-primary'}`}>
                           {n.title}
                         </span>
-                        <span className="text-[10px] text-text-muted flex-shrink-0">{n.time}</span>
+                        <span className="text-[10px] text-text-muted flex-shrink-0">{n.time || formatTimeAgo(n.createdAt)}</span>
                       </div>
                       <p className="text-[11px] text-text-secondary mt-0.5 leading-snug line-clamp-2">{n.description}</p>
                     </div>

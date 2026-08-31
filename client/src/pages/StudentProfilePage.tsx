@@ -50,6 +50,122 @@ export default function StudentProfilePage() {
   const [driveHistory, setDriveHistory] = useState<any>(null);
   const [driveHistoryLoading, setDriveHistoryLoading] = useState(false);
 
+  // Company Data Tab & Edit Modal state
+  const [companyTab, setCompanyTab] = useState<'ALL' | 'REGISTERED' | 'ATTENDED' | 'PLACED'>('ALL');
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [companyModalTab, setCompanyModalTab] = useState<'ADD_PLACEMENT' | 'EDIT_DRIVE'>('ADD_PLACEMENT');
+  
+  // Add/Edit Placement Form state
+  const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null);
+  const [placementCompName, setPlacementCompName] = useState('');
+  const [placementJobTitle, setPlacementJobTitle] = useState('');
+  const [placementCtc, setPlacementCtc] = useState('');
+  const [placementDate, setPlacementDate] = useState('');
+  const [placementOfferStatus, setPlacementOfferStatus] = useState('JOINED');
+
+  // Edit Drive Form state
+  const [selectedDriveJobId, setSelectedDriveJobId] = useState('');
+  const [selectedDriveStatus, setSelectedDriveStatus] = useState('ATTENDED');
+
+  const [companyFormLoading, setCompanyFormLoading] = useState(false);
+
+  const handleOpenAddPlacement = () => {
+    setEditingPlacementId(null);
+    setPlacementCompName('');
+    setPlacementJobTitle('');
+    setPlacementCtc('');
+    setPlacementDate(new Date().toISOString().split('T')[0]);
+    setPlacementOfferStatus('JOINED');
+    setCompanyModalTab('ADD_PLACEMENT');
+    setCompanyModalOpen(true);
+  };
+
+  const handleOpenEditPlacement = (offer: any) => {
+    setEditingPlacementId(offer.id);
+    setPlacementCompName(offer.company?.name || offer.companyName || '');
+    setPlacementJobTitle(offer.job?.jobTitle || offer.jobTitle || '');
+    setPlacementCtc(String(offer.ctc || ''));
+    setPlacementDate(offer.placedAt ? new Date(offer.placedAt).toISOString().split('T')[0] : '');
+    setPlacementOfferStatus(offer.status || 'JOINED');
+    setCompanyModalTab('ADD_PLACEMENT');
+    setCompanyModalOpen(true);
+  };
+
+  const handleSavePlacement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !placementCompName || !placementJobTitle || !placementCtc) return;
+    setCompanyFormLoading(true);
+    try {
+      if (editingPlacementId) {
+        const res = await apiFetch(`/api/reports/placements/${editingPlacementId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ctc: Number(placementCtc), date: placementDate }),
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.message || 'Failed to update placement');
+      } else {
+        const res = await apiFetch('/api/reports/placements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentId: id,
+            companyName: placementCompName,
+            jobTitle: placementJobTitle,
+            ctc: Number(placementCtc),
+            status: placementOfferStatus,
+            placedAt: placementDate,
+          }),
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.message || 'Failed to add placement');
+      }
+      setCompanyModalOpen(false);
+      await Promise.all([loadStudentData(), loadDriveHistory()]);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save placement record');
+    } finally {
+      setCompanyFormLoading(false);
+    }
+  };
+
+  const handleSaveDriveStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !selectedDriveJobId) return;
+    setCompanyFormLoading(true);
+    try {
+      const res = await apiFetch(`/api/drives/job/${selectedDriveJobId}/students/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: selectedDriveStatus }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Failed to update drive status');
+
+      setCompanyModalOpen(false);
+      await Promise.all([loadStudentData(), loadDriveHistory()]);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update drive status');
+    } finally {
+      setCompanyFormLoading(false);
+    }
+  };
+
+  const handleDeletePlacementHistory = async (historyId: string) => {
+    if (!confirm('Are you sure you want to revoke/delete this placement offer record?')) return;
+    setCompanyFormLoading(true);
+    try {
+      const res = await apiFetch(`/api/reports/placements/${historyId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Failed to delete placement offer');
+      await Promise.all([loadStudentData(), loadDriveHistory()]);
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete placement offer');
+    } finally {
+      setCompanyFormLoading(false);
+    }
+  };
+
   // Termination Dialog control
   const [termOpen, setTermOpen] = useState(false);
   const [termReason, setTermReason] = useState('');
@@ -444,99 +560,255 @@ export default function StudentProfilePage() {
             )}
           </div>
 
-          {/* Registered & Attended Placement Drives Card */}
+          {/* ─── Companies & Placement Data Section ─── */}
           <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-6">
+            {/* Header & Main Manage Action */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-primary pb-4">
               <div>
                 <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
                   <Building className="w-4 h-4 text-primary" />
-                  <span>Registered &amp; Attended Placement Drives</span>
+                  <span>Company Drive Participation &amp; Placement History</span>
                 </h3>
-                <p className="text-[11px] text-text-muted mt-0.5">Track company drives registered, attended, shortlisted, and selected outcomes.</p>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  Verified records of registered placement drives, attended evaluation rounds, and offer packages.
+                </p>
               </div>
+
+              {['ADMIN', 'MANAGER', 'LEAD'].includes(authUser?.roleName || '') && (
+                <button
+                  onClick={() => {
+                    handleOpenAddPlacement();
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-gradient-primary hover:brightness-110 text-white text-xs font-semibold rounded shadow transition cursor-pointer border-0"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Manage / Edit Companies Data</span>
+                </button>
+              )}
             </div>
 
-            {/* Metrics overview */}
+            {/* Metrics Counters */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
                 <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Registered Drives</div>
-                <div className="text-xl font-extrabold text-text-primary mt-1">{driveHistory?.metrics?.registeredCount ?? 0}</div>
+                <div className="text-xl font-extrabold text-primary mt-1">{driveHistory?.metrics?.registeredCount ?? 0}</div>
               </div>
               <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
                 <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Attended Drives</div>
-                <div className="text-xl font-extrabold text-primary mt-1">{driveHistory?.metrics?.attendedCount ?? 0}</div>
+                <div className="text-xl font-extrabold text-indigo-400 mt-1">{driveHistory?.metrics?.attendedCount ?? 0}</div>
               </div>
               <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
-                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Shortlisted Drives</div>
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Shortlisted</div>
                 <div className="text-xl font-extrabold text-warning mt-1">{driveHistory?.metrics?.shortlistedCount ?? 0}</div>
               </div>
               <div className="bg-surface-2 p-3.5 border border-border-primary rounded text-center">
-                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Selected / Placed</div>
-                <div className="text-xl font-extrabold text-success mt-1">{driveHistory?.metrics?.selectedCount ?? 0}</div>
+                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Placed / Offers</div>
+                <div className="text-xl font-extrabold text-success mt-1">{student.placementHistory?.length || driveHistory?.metrics?.selectedCount || 0}</div>
               </div>
             </div>
 
-            {/* Drive Table */}
-            {!driveHistory || driveHistory.drives.length === 0 ? (
-              <div className="text-xs text-text-muted font-medium py-6 text-center bg-surface-2/30 rounded border border-border-primary">
-                Candidate has not registered for any company placement drives yet.
-              </div>
-            ) : (
-              <div className="border border-border-primary rounded overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-background-tertiary border-b border-border-primary text-[10px] font-bold text-text-muted uppercase tracking-wider">
-                        <th className="px-4 py-3">Company &amp; Job Title</th>
-                        <th className="px-4 py-3 text-center">CTC (LPA)</th>
-                        <th className="px-4 py-3 text-center">Registered Date</th>
-                        <th className="px-4 py-3 text-center">Attendance</th>
-                        <th className="px-4 py-3 text-center">Drive Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-primary bg-surface-1">
-                      {driveHistory.drives.map((d: any) => {
-                        const isAttended = ['ATTENDED', 'SHORTLISTED', 'SELECTED'].includes(d.driveStatus);
-                        return (
-                          <tr key={d.id} className="hover:bg-surface-2/50 transition duration-150">
+            {/* Filter Tabs */}
+            <div className="flex gap-2 border-b border-border-primary pb-2 overflow-x-auto">
+              <button
+                onClick={() => setCompanyTab('ALL')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer ${companyTab === 'ALL' ? 'bg-primary text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+              >
+                All Activities
+              </button>
+              <button
+                onClick={() => setCompanyTab('REGISTERED')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer ${companyTab === 'REGISTERED' ? 'bg-primary text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+              >
+                Registered ({driveHistory?.metrics?.registeredCount ?? 0})
+              </button>
+              <button
+                onClick={() => setCompanyTab('ATTENDED')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer ${companyTab === 'ATTENDED' ? 'bg-primary text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+              >
+                Attended ({driveHistory?.metrics?.attendedCount ?? 0})
+              </button>
+              <button
+                onClick={() => setCompanyTab('PLACED')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition cursor-pointer ${companyTab === 'PLACED' ? 'bg-success text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+              >
+                Placed &amp; Offers ({student.placementHistory?.length || 0})
+              </button>
+            </div>
+
+            {/* Clean & Aligned Companies Table */}
+            {(() => {
+              const drivesList = driveHistory?.drives || [];
+              const offersList = student.placementHistory || [];
+
+              let displayItems: any[] = [];
+
+              if (companyTab === 'PLACED') {
+                displayItems = offersList.map((o: any) => ({
+                  id: o.id,
+                  companyName: o.company?.name || 'Company',
+                  jobTitle: o.job?.jobTitle || 'Role',
+                  ctc: o.ctc,
+                  date: o.placedAt,
+                  participationType: 'PLACED_OFFER',
+                  status: o.status || 'OFFERED',
+                  rawOffer: o,
+                }));
+              } else {
+                const mappedDrives = drivesList.map((d: any) => ({
+                  id: d.id,
+                  jobId: d.jobId,
+                  companyName: d.company?.name || 'Company',
+                  jobTitle: d.jobTitle || 'Role',
+                  ctc: d.ctc,
+                  date: d.registeredAt,
+                  participationType: d.driveStatus,
+                  status: d.driveStatus,
+                  rawDrive: d,
+                }));
+
+                const mappedOffers = offersList.map((o: any) => ({
+                  id: o.id,
+                  companyName: o.company?.name || 'Company',
+                  jobTitle: o.job?.jobTitle || 'Role',
+                  ctc: o.ctc,
+                  date: o.placedAt,
+                  participationType: 'PLACED_OFFER',
+                  status: o.status || 'OFFERED',
+                  rawOffer: o,
+                }));
+
+                displayItems = [...mappedOffers, ...mappedDrives];
+
+                if (companyTab === 'REGISTERED') {
+                  displayItems = displayItems.filter((i) => i.participationType === 'REGISTERED');
+                } else if (companyTab === 'ATTENDED') {
+                  displayItems = displayItems.filter((i) => ['ATTENDED', 'SHORTLISTED', 'SELECTED'].includes(i.participationType));
+                }
+              }
+
+              if (displayItems.length === 0) {
+                return (
+                  <div className="text-xs text-text-muted font-medium py-8 text-center bg-surface-2/30 rounded border border-border-primary">
+                    No records found for the selected company category.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="border border-border-primary rounded overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-background-tertiary border-b border-border-primary text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                          <th className="px-4 py-3">Company &amp; Job Title</th>
+                          <th className="px-4 py-3 text-center">Package (CTC)</th>
+                          <th className="px-4 py-3 text-center">Event Date</th>
+                          <th className="px-4 py-3 text-center">Participation Level</th>
+                          <th className="px-4 py-3 text-center">Status</th>
+                          {['ADMIN', 'MANAGER', 'LEAD'].includes(authUser?.roleName || '') && (
+                            <th className="px-4 py-3 text-right">Action</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-primary bg-surface-1">
+                        {displayItems.map((item: any, idx: number) => (
+                          <tr key={item.id || idx} className="hover:bg-surface-2/50 transition duration-150">
                             <td className="px-4 py-3">
-                              <div className="font-bold text-text-primary">{d.jobTitle}</div>
-                              <div className="text-[11px] text-text-muted font-medium">{d.company?.name}</div>
-                            </td>
-                            <td className="px-4 py-3 text-center font-bold text-text-primary">{d.ctc} LPA</td>
-                            <td className="px-4 py-3 text-center text-text-muted">
-                              {new Date(d.registeredAt).toLocaleDateString()}
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded bg-primary/10 text-primary flex-shrink-0">
+                                  <Building className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-text-primary text-xs">{item.jobTitle}</div>
+                                  <div className="text-[11px] text-text-muted font-semibold">{item.companyName}</div>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {isAttended ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-success/10 text-success border border-success/20">
-                                  Attended
+                              <span className={`font-extrabold text-xs px-2.5 py-1 rounded border ${
+                                item.ctc >= 20 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                                item.ctc > 0 ? 'bg-success/10 text-success border-success/20' :
+                                'bg-surface-2 text-text-muted border-border-primary'
+                              }`}>
+                                {item.ctc ? `₹ ${item.ctc} LPA` : '—'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center text-text-muted font-medium">
+                              {item.date ? new Date(item.date).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {item.participationType === 'PLACED_OFFER' ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-success/20 text-success border border-success/30 uppercase">
+                                  🏆 Placed Offer
+                                </span>
+                              ) : item.participationType === 'ATTENDED' ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                                  Attended Round
+                                </span>
+                              ) : item.participationType === 'SHORTLISTED' ? (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-warning/20 text-warning border border-warning/30">
+                                  Shortlisted
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-2 text-text-muted border border-border-primary">
-                                  Registered
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                  Registered Drive
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`px-2.5 py-1 rounded text-[10px] font-extrabold border ${
-                                d.driveStatus === 'SELECTED' ? 'bg-success/15 text-success border-success/30' :
-                                d.driveStatus === 'SHORTLISTED' ? 'bg-primary/15 text-primary border-primary/30' :
-                                d.driveStatus === 'ATTENDED' ? 'bg-warning/15 text-warning border-warning/30' :
-                                d.driveStatus === 'REJECTED' ? 'bg-error/15 text-error border-error/30' :
+                              <span className={`px-2.5 py-0.5 rounded text-[10px] font-extrabold border ${
+                                ['JOINED', 'OFFERED', 'SELECTED'].includes(item.status) ? 'bg-success/15 text-success border-success/30' :
+                                item.status === 'SHORTLISTED' ? 'bg-warning/15 text-warning border-warning/30' :
+                                item.status === 'REJECTED' ? 'bg-error/15 text-error border-error/30' :
                                 'bg-surface-2 text-text-secondary border-border-primary'
                               }`}>
-                                {d.driveStatus}
+                                {item.status}
                               </span>
                             </td>
+                            {['ADMIN', 'MANAGER', 'LEAD'].includes(authUser?.roleName || '') && (
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex gap-1.5 justify-end">
+                                  {item.rawOffer ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleOpenEditPlacement(item.rawOffer)}
+                                        className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-primary transition cursor-pointer"
+                                        title="Edit Placement Offer"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeletePlacementHistory(item.rawOffer.id)}
+                                        className="p-1.5 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-error transition cursor-pointer"
+                                        title="Delete Placement Offer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedDriveJobId(item.jobId);
+                                        setSelectedDriveStatus(item.status);
+                                        setCompanyModalTab('EDIT_DRIVE');
+                                        setCompanyModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                                    >
+                                      Update Status
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            )}
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Resume Viewer Card */}
@@ -548,7 +820,6 @@ export default function StudentProfilePage() {
               </h3>
 
               {resumesList.map((doc: any, idx: number) => {
-                // Convert Google Drive share links to preview-embeddable URLs
                 const rawUrl: string = doc.fileUrl || '';
                 let embedUrl = rawUrl;
                 let downloadUrl = rawUrl;
@@ -592,38 +863,6 @@ export default function StudentProfilePage() {
               })}
             </div>
           )}
-
-          {/* Placement History */}
-          <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-4">
-            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
-              <History className="w-4 h-4 text-primary" />
-              <span>Placement Offer History</span>
-            </h3>
-
-            {student.placementHistory.length === 0 ? (
-              <div className="text-xs text-text-muted font-medium py-4 text-center">
-                No active placement offers logged for this student.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {student.placementHistory.map((offer: any) => (
-                  <div key={offer.id} className="bg-surface-2 p-4 border border-border-primary rounded flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-bold text-text-primary">{offer.job.jobTitle}</div>
-                      <div className="text-xs text-text-secondary font-medium">{offer.company.name}</div>
-                      <div className="text-[10px] text-text-muted">Placed: {new Date(offer.placedAt).toLocaleDateString()}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-extrabold text-success">{offer.ctc} LPA</div>
-                      <span className="text-[10px] font-bold bg-success/10 text-success px-2 py-0.5 rounded border border-success/20 uppercase mt-1 inline-block">
-                        {offer.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* AI ATS Matching History & Evaluator */}
           <div className="bg-surface-1 p-6 rounded border border-border-primary space-y-6">
@@ -1134,6 +1373,188 @@ export default function StudentProfilePage() {
         type="danger"
         loading={deleteLoading}
       />
+
+      {/* ─── Manage & Edit Companies Data Modal ─── */}
+      {companyModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto p-4 bg-black/70 backdrop-blur-sm flex justify-center items-center animate-in fade-in duration-200">
+          <div className="bg-surface-1 max-w-xl w-full rounded-xl border border-border-primary shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border-primary bg-background-secondary">
+              <h3 className="font-extrabold text-text-primary text-sm uppercase tracking-wider flex items-center gap-2">
+                <Building className="w-4 h-4 text-primary" />
+                <span>Manage Candidate Companies &amp; Placements</span>
+              </h3>
+              <button
+                onClick={() => setCompanyModalOpen(false)}
+                className="p-1.5 hover:bg-surface-2 rounded text-text-muted hover:text-text-primary transition cursor-pointer border-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex border-b border-border-primary bg-surface-2 text-xs font-bold">
+              <button
+                onClick={() => setCompanyModalTab('ADD_PLACEMENT')}
+                className={`flex-1 py-3 border-b-2 transition cursor-pointer ${
+                  companyModalTab === 'ADD_PLACEMENT' ? 'border-primary text-primary bg-surface-1' : 'border-transparent text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {editingPlacementId ? 'Edit Placement Offer' : '+ Add Placement Offer'}
+              </button>
+              <button
+                onClick={() => setCompanyModalTab('EDIT_DRIVE')}
+                className={`flex-1 py-3 border-b-2 transition cursor-pointer ${
+                  companyModalTab === 'EDIT_DRIVE' ? 'border-primary text-primary bg-surface-1' : 'border-transparent text-text-muted hover:text-text-primary'
+                }`}
+              >
+                Update Drive Attendance
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {companyModalTab === 'ADD_PLACEMENT' && (
+                <form onSubmit={handleSavePlacement} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Company Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Zoho Corporation, Google, TCS..."
+                      className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                      value={placementCompName}
+                      onChange={(e) => setPlacementCompName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Job Designation / Role</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Software Engineer..."
+                        className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                        value={placementJobTitle}
+                        onChange={(e) => setPlacementJobTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">CTC Package (LPA)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        required
+                        placeholder="e.g. 18.0"
+                        className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                        value={placementCtc}
+                        onChange={(e) => setPlacementCtc(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Placement Date</label>
+                      <input
+                        type="date"
+                        required
+                        className="w-full h-10 px-3 border border-border-primary rounded text-xs outline-none bg-background-secondary text-text-primary focus:border-primary transition"
+                        value={placementDate}
+                        onChange={(e) => setPlacementDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Offer Status</label>
+                      <select
+                        className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition font-bold"
+                        value={placementOfferStatus}
+                        onChange={(e) => setPlacementOfferStatus(e.target.value)}
+                      >
+                        <option value="JOINED">JOINED</option>
+                        <option value="OFFERED">OFFERED</option>
+                        <option value="ACCEPTED">ACCEPTED</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
+                    <button
+                      type="button"
+                      onClick={() => setCompanyModalOpen(false)}
+                      className="px-4 py-2 border border-border-primary rounded text-xs font-bold text-text-secondary hover:bg-surface-2 transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={companyFormLoading}
+                      className="px-4 py-2 bg-gradient-primary text-white text-xs font-bold rounded hover:brightness-110 disabled:opacity-50 transition border-0 cursor-pointer flex items-center gap-1.5"
+                    >
+                      {companyFormLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Save Offer Details</span>}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {companyModalTab === 'EDIT_DRIVE' && (
+                <form onSubmit={handleSaveDriveStatus} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Select Placement Drive</label>
+                    <select
+                      required
+                      className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition"
+                      value={selectedDriveJobId}
+                      onChange={(e) => setSelectedDriveJobId(e.target.value)}
+                    >
+                      <option value="">Select Company Drive</option>
+                      {(driveHistory?.drives || []).map((d: any) => (
+                        <option key={d.jobId} value={d.jobId}>
+                          {d.company?.name} — {d.jobTitle} ({d.ctc} LPA)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Drive Status / Progress</label>
+                    <select
+                      required
+                      className="w-full h-10 border border-border-primary rounded px-3 text-xs bg-background-secondary text-text-primary focus:border-primary outline-none transition font-bold text-primary"
+                      value={selectedDriveStatus}
+                      onChange={(e) => setSelectedDriveStatus(e.target.value)}
+                    >
+                      <option value="REGISTERED">REGISTERED (Registered for Drive)</option>
+                      <option value="ATTENDED">ATTENDED (Attended Evaluation Rounds)</option>
+                      <option value="SHORTLISTED">SHORTLISTED (Cleared Initial Rounds)</option>
+                      <option value="SELECTED">SELECTED (Placed / Offer Issued)</option>
+                      <option value="REJECTED">REJECTED (Not Selected)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
+                    <button
+                      type="button"
+                      onClick={() => setCompanyModalOpen(false)}
+                      className="px-4 py-2 border border-border-primary rounded text-xs font-bold text-text-secondary hover:bg-surface-2 transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={companyFormLoading}
+                      className="px-4 py-2 bg-gradient-primary text-white text-xs font-bold rounded hover:brightness-110 disabled:opacity-50 transition border-0 cursor-pointer flex items-center gap-1.5"
+                    >
+                      {companyFormLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Update Drive Status</span>}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

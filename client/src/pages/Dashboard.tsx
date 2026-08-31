@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { formatImageUrl } from '../utils/formatImageUrl';
 import KpiCard from '../components/KpiCard';
+import StatusBadge from '../components/StatusBadge';
 import { useJobStore } from '../store/jobStore';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -54,9 +55,14 @@ export default function Dashboard() {
   const [placementsReport, setPlacementsReport] = useState<any>(null);
   const [placementsLoading, setPlacementsLoading] = useState(false);
 
-  // Modal Filter & Search states
+  // Modal Filter, Search & Pagination states
   const [modalSearch, setModalSearch] = useState('');
   const [ctcTierFilter, setCtcTierFilter] = useState<'ALL' | 'TOP_20' | 'MID_10_20' | 'UNDER_10'>('ALL');
+  const [modalPage, setModalPage] = useState(1);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [activeModal, modalSearch, ctcTierFilter]);
 
 
   const fetchStats = async (silent = false) => {
@@ -491,6 +497,7 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveModal(null);
                   setModalCompanyData(null);
+                  setModalSearch('');
                 }}
                 className="p-2 rounded-lg bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition cursor-pointer border-0"
               >
@@ -500,242 +507,231 @@ export default function Dashboard() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {activeModal === 'COMPANY' && (
-                <div className="space-y-4">
-                  <div className="flex gap-4 items-center bg-background-secondary p-4 rounded border border-border-primary">
-                    <div className="p-3 bg-primary/10 rounded-lg text-primary">
-                      <Building2 className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-text-primary text-base">{modalCompanyData?.companyName}</div>
-                      <div className="text-xs text-text-muted">
-                        {modalCompanyData?.placedCount} Placed &bull; {modalCompanyData?.offersCount} Total Offers Issued &bull; Max CTC: ₹ {modalCompanyData?.maxCtc} LPA &bull; Avg CTC: ₹ {modalCompanyData?.avgCtc} LPA
+              {/* Search & Tier Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-background-secondary p-3.5 rounded-lg border border-border-primary">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={modalSearch}
+                    onChange={(e) => setModalSearch(e.target.value)}
+                    placeholder="Search name, CTC (e.g. 24), roll no, company..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-surface-2 border border-border-primary rounded text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-primary"
+                  />
+                </div>
+                {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => setCtcTierFilter('ALL')}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'ALL' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
+                    >
+                      All Offers
+                    </button>
+                    <button
+                      onClick={() => setCtcTierFilter('TOP_20')}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'TOP_20' ? 'bg-amber-500 text-black border-amber-500 font-extrabold' : 'bg-surface-2 text-amber-400 border-amber-400/30 hover:bg-amber-500/10'}`}
+                    >
+                      🔥 20+ LPA Top Tier
+                    </button>
+                    <button
+                      onClick={() => setCtcTierFilter('MID_10_20')}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'MID_10_20' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
+                    >
+                      10-20 LPA
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Shimmer Skeleton Loader when fetching */}
+              {placementsLoading ? (
+                <div className="space-y-3 py-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-surface-2/80 rounded border border-border-primary/50 animate-pulse flex items-center px-4 justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-surface-3" />
+                        <div className="space-y-1">
+                          <div className="w-32 h-3 bg-surface-3 rounded" />
+                          <div className="w-20 h-2.5 bg-surface-3/60 rounded" />
+                        </div>
                       </div>
+                      <div className="w-24 h-4 bg-surface-3 rounded" />
+                      <div className="w-16 h-6 bg-surface-3 rounded-full" />
                     </div>
-                  </div>
-
-                  <div className="border border-border-primary rounded overflow-hidden">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead className="bg-background-tertiary">
-                        <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
-                          <th className="px-4 py-2.5">Student Name</th>
-                          <th className="px-4 py-2.5">Roll No &amp; Dept</th>
-                          <th className="px-4 py-2.5">Designation</th>
-                          <th className="px-4 py-2.5 text-center">CTC Package</th>
-                          <th className="px-4 py-2.5 text-center">Status</th>
-                          <th className="px-4 py-2.5 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-primary">
-                        {(modalCompanyData?.students || []).map((s: any) => (
-                          <tr key={s.placementId || s.studentId} className="hover:bg-surface-2/60 transition">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                {s.studentPhotoUrl ? (
-                                  <img
-                                    src={formatImageUrl(s.studentPhotoUrl)}
-                                    className="w-8 h-8 rounded-full object-cover border border-primary/30 flex-shrink-0"
-                                    alt={s.fullName}
-                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                    {s.fullName?.charAt(0).toUpperCase() || 'S'}
-                                  </div>
-                                )}
-                                <div>
-                                  <div className="font-bold text-text-primary">{s.fullName}</div>
-                                  <div className="text-[10px] text-text-muted">{s.email}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 font-mono font-semibold text-text-primary">
-                              {s.rollNumber}
-                              <div className="text-[10px] text-text-muted font-sans font-medium">{s.department}</div>
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-text-primary">{s.jobTitle}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="font-extrabold text-success text-xs bg-success/10 px-2.5 py-1 rounded border border-success/20">
-                                ₹ {s.ctc} LPA
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="px-2 py-0.5 bg-success/15 border border-success/30 text-success text-[10px] font-extrabold rounded uppercase">
-                                {s.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => {
-                                  setActiveModal(null);
-                                  navigate(`/students/${s.studentId}`);
-                                }}
-                                className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
-                              >
-                                Profile &rarr;
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  ))}
                 </div>
-              )}
+              ) : (
+                (() => {
+                  // Determine dataset according to activeModal
+                  let rawList: any[] = [];
+                  if (activeModal === 'COMPANY') rawList = modalCompanyData?.students || [];
+                  else if (activeModal === 'PLACED' || activeModal === 'HIGHEST') rawList = placementsReport?.placed || [];
+                  else if (activeModal === 'UNPLACED') rawList = placementsReport?.unplaced || [];
+                  else if (activeModal === 'ELIGIBLE') rawList = placementsReport?.overall || [];
 
-              {(activeModal === 'PLACED' || activeModal === 'HIGHEST' || activeModal === 'UNPLACED' || activeModal === 'ELIGIBLE') && (
-                <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-background-secondary p-3.5 rounded-lg border border-border-primary">
-                  <div className="relative w-full sm:w-80">
-                    <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={modalSearch}
-                      onChange={(e) => setModalSearch(e.target.value)}
-                      placeholder="Search name, CTC (e.g. 24), roll no, company..."
-                      className="w-full pl-9 pr-3 py-1.5 bg-surface-2 border border-border-primary rounded text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-primary"
-                    />
-                  </div>
-                  {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        onClick={() => setCtcTierFilter('ALL')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'ALL' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
-                      >
-                        All Offers
-                      </button>
-                      <button
-                        onClick={() => setCtcTierFilter('TOP_20')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'TOP_20' ? 'bg-amber-500 text-black border-amber-500 font-extrabold' : 'bg-surface-2 text-amber-400 border-amber-400/30 hover:bg-amber-500/10'}`}
-                      >
-                        🔥 20+ LPA (24 LPA Top Tier)
-                      </button>
-                      <button
-                        onClick={() => setCtcTierFilter('MID_10_20')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${ctcTierFilter === 'MID_10_20' ? 'bg-primary text-white border-primary' : 'bg-surface-2 text-text-muted border-border-primary hover:border-border-hover'}`}
-                      >
-                        10-20 LPA
-                      </button>
+                  // Apply search and tier filters
+                  const q = modalSearch.toLowerCase().trim();
+                  const filteredList = rawList
+                    .filter((item: any) => {
+                      if ((activeModal === 'PLACED' || activeModal === 'HIGHEST') && ctcTierFilter !== 'ALL') {
+                        if (ctcTierFilter === 'TOP_20' && (item.ctc || 0) < 20) return false;
+                        if (ctcTierFilter === 'MID_10_20' && ((item.ctc || 0) < 10 || (item.ctc || 0) >= 20)) return false;
+                        if (ctcTierFilter === 'UNDER_10' && (item.ctc || 0) >= 10) return false;
+                      }
+                      if (!q) return true;
+                      return (
+                        (item.fullName || '').toLowerCase().includes(q) ||
+                        (item.rollNumber || '').toLowerCase().includes(q) ||
+                        (item.department || '').toLowerCase().includes(q) ||
+                        (item.departmentName || '').toLowerCase().includes(q) ||
+                        (item.email || item.collegeEmail || item.personalEmail || '').toLowerCase().includes(q) ||
+                        (item.companyName || item.placedCompany || '').toLowerCase().includes(q) ||
+                        (item.ctc ? item.ctc.toString().includes(q) || `${item.ctc} lpa`.includes(q) : false)
+                      );
+                    })
+                    .sort((a: any, b: any) => {
+                      if (activeModal === 'HIGHEST' || activeModal === 'PLACED') return (b.ctc || 0) - (a.ctc || 0);
+                      return (a.rollNumber || '').localeCompare(b.rollNumber || '');
+                    });
+
+                  const pageSize = 10;
+                  const totalRecords = filteredList.length;
+                  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+                  const currentPage = Math.min(modalPage, totalPages);
+                  const startIndex = (currentPage - 1) * pageSize;
+                  const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="border border-border-primary rounded overflow-hidden">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead className="bg-background-tertiary">
+                            <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
+                              <th className="px-4 py-2.5">Candidate Name</th>
+                              <th className="px-4 py-2.5">Roll No &amp; Dept</th>
+                              <th className="px-4 py-2.5">
+                                {activeModal === 'PLACED' || activeModal === 'HIGHEST' ? 'Hiring Company' : 'Email Contact'}
+                              </th>
+                              <th className="px-4 py-2.5 text-center">
+                                {activeModal === 'PLACED' || activeModal === 'HIGHEST' ? 'Offered Package (CTC)' : activeModal === 'ELIGIBLE' ? 'Placement Status' : 'UG Score'}
+                              </th>
+                              <th className="px-4 py-2.5 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border-primary">
+                            {paginatedList.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="py-8 text-center text-xs text-text-muted">
+                                  No matching records found.
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedList.map((s: any) => (
+                                <tr
+                                  key={s.id || s.studentId || s.placementId}
+                                  className={`transition ${s.ctc >= 24 ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-surface-2/60'}`}
+                                >
+                                  <td className="px-4 py-3 font-bold text-text-primary">
+                                    <div className="flex items-center gap-2.5">
+                                      {s.studentPhotoUrl ? (
+                                        <img
+                                          src={formatImageUrl(s.studentPhotoUrl)}
+                                          className="w-7 h-7 rounded-full object-cover border border-primary/30 flex-shrink-0"
+                                          alt={s.fullName}
+                                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                        />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-gradient-primary flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                                          {s.fullName?.charAt(0).toUpperCase() || 'S'}
+                                        </div>
+                                      )}
+                                      <div>
+                                        <div className="font-bold text-text-primary flex items-center gap-1.5">
+                                          <span>{s.fullName}</span>
+                                          {s.ctc >= 24 && (
+                                            <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-extrabold rounded-full uppercase tracking-wider shadow">
+                                              🏆 24 LPA Top Offer
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="font-mono font-semibold text-text-primary">{s.rollNumber}</span>
+                                    <span className="text-[10px] text-text-muted block">{s.department || s.departmentName}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-text-secondary font-medium">
+                                    {activeModal === 'PLACED' || activeModal === 'HIGHEST' ? (
+                                      <div className="flex items-center gap-1.5 font-semibold text-text-primary">
+                                        <Building2 className="w-3.5 h-3.5 text-primary" />
+                                        <span>{s.companyName || s.placedCompany}</span>
+                                      </div>
+                                    ) : (
+                                      <span>{s.email || s.collegeEmail || s.personalEmail}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {activeModal === 'PLACED' || activeModal === 'HIGHEST' ? (
+                                      <span className={`font-extrabold text-xs px-2.5 py-1 rounded border ${s.ctc >= 24 ? 'bg-amber-500 text-black border-amber-400' : 'text-success bg-success/10 border-success/20'}`}>
+                                        ₹ {s.ctc} LPA
+                                      </span>
+                                    ) : activeModal === 'ELIGIBLE' ? (
+                                      <StatusBadge status={s.placementStatus} />
+                                    ) : (
+                                      <span className="font-bold text-text-primary">{s.ugPercentage}%</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <button
+                                      onClick={() => {
+                                        setActiveModal(null);
+                                        navigate(`/students/${s.studentId || s.id}`);
+                                      }}
+                                      className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
+                                    >
+                                      Profile &rarr;
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination Bar */}
+                      {totalRecords > 0 && (
+                        <div className="px-4 py-3 border border-border-primary rounded bg-background-tertiary flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
+                          <span className="text-text-muted font-semibold">
+                            Showing <strong className="text-text-primary">{startIndex + 1}–{Math.min(totalRecords, startIndex + pageSize)}</strong> of <strong className="text-text-primary">{totalRecords}</strong> records
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] font-bold text-text-muted bg-surface-2 px-2.5 py-1 rounded border border-border-primary">
+                              Page {currentPage} of {totalPages}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setModalPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3.5 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-40 text-text-secondary text-xs font-bold hover:bg-surface-elevated transition cursor-pointer disabled:cursor-not-allowed"
+                              >
+                                Previous
+                              </button>
+                              <button
+                                onClick={() => setModalPage((p) => p + 1)}
+                                disabled={currentPage >= totalPages}
+                                className="px-3.5 py-1.5 border border-border-primary rounded bg-surface-2 disabled:opacity-40 text-text-secondary text-xs font-bold hover:bg-surface-elevated transition cursor-pointer disabled:cursor-not-allowed"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {(activeModal === 'PLACED' || activeModal === 'HIGHEST') && (
-                <div className="border border-border-primary rounded overflow-hidden">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead className="bg-background-tertiary">
-                      <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
-                        <th className="px-4 py-2.5">Candidate Name</th>
-                        <th className="px-4 py-2.5">Roll No &amp; Dept</th>
-                        <th className="px-4 py-2.5">Hiring Company</th>
-                        <th className="px-4 py-2.5 text-center">Offered Package (CTC)</th>
-                        <th className="px-4 py-2.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-primary">
-                      {(placementsReport?.placed || [])
-                        .filter((p: any) => {
-                          if (ctcTierFilter === 'TOP_20' && p.ctc < 20) return false;
-                          if (ctcTierFilter === 'MID_10_20' && (p.ctc < 10 || p.ctc >= 20)) return false;
-                          if (ctcTierFilter === 'UNDER_10' && p.ctc >= 10) return false;
-                          if (!modalSearch.trim()) return true;
-                          const q = modalSearch.toLowerCase().trim();
-                          return (
-                            p.fullName.toLowerCase().includes(q) ||
-                            p.rollNumber.toLowerCase().includes(q) ||
-                            p.companyName.toLowerCase().includes(q) ||
-                            p.department.toLowerCase().includes(q) ||
-                            p.ctc.toString().includes(q) ||
-                            `${p.ctc} lpa`.includes(q)
-                          );
-                        })
-                        .sort((a: any, b: any) => b.ctc - a.ctc)
-                        .map((p: any) => (
-                          <tr key={p.id} className={`transition ${p.ctc >= 24 ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-surface-2/60'}`}>
-                            <td className="px-4 py-3 font-bold text-text-primary">
-                              <div className="flex items-center gap-2">
-                                <span>{p.fullName}</span>
-                                {p.ctc >= 24 && (
-                                  <span className="px-2 py-0.5 bg-amber-500 text-black text-[9px] font-extrabold rounded-full uppercase tracking-wider shadow">
-                                    🏆 24 LPA Top Offer
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="font-mono font-semibold text-text-primary">{p.rollNumber}</span>
-                              <span className="text-[10px] text-text-muted block">{p.department}</span>
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-text-primary flex items-center gap-1.5 mt-1">
-                              <Building2 className="w-3.5 h-3.5 text-primary" />
-                              <span>{p.companyName}</span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`font-extrabold text-xs px-2.5 py-1 rounded border ${p.ctc >= 24 ? 'bg-amber-500 text-black border-amber-400' : 'text-success bg-success/10 border-success/20'}`}>
-                                ₹ {p.ctc} LPA
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => {
-                                  setActiveModal(null);
-                                  navigate(`/students/${p.studentId}`);
-                                }}
-                                className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
-                              >
-                                Profile &rarr;
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-
-              {(activeModal === 'UNPLACED' || activeModal === 'ELIGIBLE') && (
-                <div className="border border-border-primary rounded overflow-hidden">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead className="bg-background-tertiary">
-                      <tr className="text-[10px] font-bold text-text-muted uppercase border-b border-border-primary">
-                        <th className="px-4 py-2.5">Candidate Name</th>
-                        <th className="px-4 py-2.5">Roll No &amp; Dept</th>
-                        <th className="px-4 py-2.5">Email Contact</th>
-                        <th className="px-4 py-2.5 text-center">UG Score</th>
-                        <th className="px-4 py-2.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-primary">
-                      {(placementsReport?.unplaced || []).map((u: any) => (
-                        <tr key={u.id} className="hover:bg-surface-2/60 transition">
-                          <td className="px-4 py-3 font-bold text-text-primary">
-                            {u.fullName}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="font-mono font-semibold text-text-primary">{u.rollNumber}</span>
-                            <span className="text-[10px] text-text-muted block">{u.department}</span>
-                          </td>
-                          <td className="px-4 py-3 text-text-secondary">{u.email}</td>
-                          <td className="px-4 py-3 text-center font-bold text-text-primary">
-                            {u.ugPercentage}%
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => {
-                                setActiveModal(null);
-                                navigate(`/students/${u.studentId}`);
-                              }}
-                              className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-border-primary rounded text-[10px] font-bold text-primary transition cursor-pointer"
-                            >
-                              Profile &rarr;
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                  );
+                })()
               )}
             </div>
           </div>

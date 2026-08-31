@@ -428,13 +428,50 @@ export default function StudentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-primary text-sm text-text-secondary">
-              {loading && students.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="text-center py-12 text-text-muted font-medium">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-                    <span>Loading student directory...</span>
-                  </td>
-                </tr>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-20 bg-surface-3 rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-surface-3 flex-shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="h-3.5 w-32 bg-surface-3 rounded" />
+                          <div className="h-2.5 w-20 bg-surface-3/50 rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-24 bg-surface-3 rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-12 bg-surface-3 rounded" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-3.5 w-10 bg-surface-3 rounded mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-3.5 w-10 bg-surface-3 rounded mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-3.5 w-10 bg-surface-3 rounded mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-6 w-20 bg-surface-3 rounded-md mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-6 w-24 bg-surface-3 rounded-full mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <div className="w-7 h-7 bg-surface-3 rounded" />
+                        <div className="w-7 h-7 bg-surface-3 rounded" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : students.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-12 text-text-muted font-medium">

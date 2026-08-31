@@ -19,6 +19,26 @@ export class ReportsController {
     });
   });
 
+  public static createPlacement = catchAsync(async (req: Request, res: Response) => {
+    const { AppError } = require('../../utils/errors');
+    const { studentId, companyName, jobTitle, ctc, status, placedAt } = req.body;
+    if (!studentId || !companyName || !jobTitle || !ctc) {
+      throw new AppError('studentId, companyName, jobTitle, and ctc are required.', 400, 'BAD_REQUEST');
+    }
+    const placement = await ReportsService.addPlacement({
+      studentId,
+      companyName,
+      jobTitle,
+      ctc,
+      status,
+      placedAt,
+    });
+    res.status(201).json({
+      success: true,
+      data: placement,
+    });
+  });
+
   public static updatePlacement = catchAsync(async (req: Request, res: Response) => {
     const { historyId } = req.params;
     const { ctc, date } = req.body;
